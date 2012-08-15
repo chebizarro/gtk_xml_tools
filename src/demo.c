@@ -1,7 +1,7 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * main.c
- * Copyright (C) 2012 Chris Daley <chris@chris-Latitude>
+ * demo.c
+ * Copyright (C) 2012 Chris Daley <chebizarro@gmail.com>
  * 
  * xml-list is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,33 +23,9 @@
 
 #include <glib/gi18n.h>
 
-#include "xmlmodel.h"
+#include "xmltreemodel.h"
+#include "xmlnavigator.h"
 
-static GtkWidget * create_view (XmlList *list);
-
-/* vbox widget for file vies */
-static GtkWidget	*tools_view_box,
-					*scrolled_window,
-					*files_view_vbox,
-					*view,
-					*xpath_entry;
-static XmlList		*xmllist;
-
-/* Create the xpath text entry */
-static GtkWidget *make_xpath_entry() {
-	GtkWidget *hbox, *xlabel;
-	hbox = gtk_hbox_new(FALSE, 3);
-	xlabel = gtk_label_new("Xpath");
-	gtk_box_pack_start(GTK_BOX(hbox), xlabel,FALSE , TRUE, 0);
-	xpath_entry = gtk_entry_new();
-	//g_signal_connect(xpath_entry, "activate", G_CALLBACK(xui_on_xpath_activate),xfile);
-    gtk_box_pack_start(GTK_BOX(hbox), xpath_entry, TRUE, TRUE, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (hbox), 2);
-
-
-	
-	return hbox;
-}
 
 /* Shows the open file dialog and returns the selectd filepath */ 
 static gchar *show_open_dialog() {

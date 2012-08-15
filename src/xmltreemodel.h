@@ -2,6 +2,7 @@
 #define _xml_list_h_included_
  
 #include <gtk/gtk.h>
+#include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
 
 /* XML/XSLT Libraries */

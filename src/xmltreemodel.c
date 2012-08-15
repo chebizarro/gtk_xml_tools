@@ -1,6 +1,6 @@
-#include "xmlmodel.h"
+#include "xmltools.h"
+#include "xmltreemodel.h"
  
-// Booya booya testing git
 /* boring declarations of local functions */
  
 static void         xml_list_init            (XmlList      *pkg_tree);
@@ -65,6 +65,8 @@ static xmlNodePtr xmlPreviousElementSiblingN(xmlNodePtr node);
 
 static GObjectClass *parent_class = NULL;  /* GObject stuff - nothing to worry about */
 
+
+
 static xmlXPathObjectPtr evaluate_xpath(xmlDoc *doc, gchar *xpath) {
 	if(xpath && doc) {
 
@@ -93,7 +95,7 @@ static xmlDocPtr throw_xml_error(){
 	xmlNodePtr errorNode = NULL;	
     char buff[256];
 
-    doc = xmlNewDoc("1.0");
+    doc = xmlNewDoc((xmlChar *)"1.0");
 	sprintf(buff, "%s", err->file);
 	xmlNewDocProp(doc, (xmlChar *) "name", (xmlChar *) buff);
 	
@@ -213,7 +215,7 @@ static xmlNodePtr xmlFirstElementChildN(xmlNodePtr node) {
 	case XML_ELEMENT_NODE:
 	case XML_DOCUMENT_NODE:
 	case XML_HTML_DOCUMENT_NODE:
-			record = node->properties;
+			record = (xmlNodePtr)node->properties;
 	case XML_DTD_NODE:
 		if(record == NULL)
 			record = node->children;
@@ -444,7 +446,7 @@ xml_list_init (XmlList *xml_list)
 	LIBXML_TEST_VERSION /* Arrrgh - where should this go??? */
 	
 	xml_list->n_columns       = XML_LIST_N_COLUMNS;
-	xml_list->column_types[0] = G_TYPE_INT;		/* XML_LIST_COL_TYPE	*/
+	xml_list->column_types[0] = G_TYPE_STRING;	/* XML_LIST_COL_TYPE	*/
 	xml_list->column_types[1] = G_TYPE_STRING;	/* XML_LIST_COL_NAME	*/
 	xml_list->column_types[2] = G_TYPE_STRING;	/* XML_LIST_COL_CONTENT	*/
 	xml_list->column_types[3] = G_TYPE_INT;		/* XML_LIST_COL_LINE	*/
@@ -590,7 +592,6 @@ xml_list_get_iter (GtkTreeModel *tree_model,
 		}
 	}
 
-	
 	if (!result)
 		return FALSE;
 
@@ -674,17 +675,19 @@ xml_list_get_value (GtkTreeModel *tree_model,
 	switch(column)
 	{
 	case XML_LIST_COL_TYPE:
-    	g_value_set_int(value, record->type);
+    	g_value_set_string(value, XmlNodes[record->type].stock_id);
 			break;
  
 		case XML_LIST_COL_NAME:
 		{
+			
 			if(record->type == XML_DOCUMENT_NODE) {
 				xmlDocPtr dorec = record;
 				g_value_set_string(value,dorec->version);
 			} else {
 				g_value_set_string(value,(gchar *) record->name);
 			}
+			
 			break;
 		}
 		case XML_LIST_COL_CONTENT:
@@ -723,8 +726,9 @@ xml_list_get_value (GtkTreeModel *tree_model,
 	case XML_LIST_COL_XPATH:
 		g_value_set_string(value, xmlGetNodePath(record));
 		break;
+
 	}
-	
+
 }
  
  
