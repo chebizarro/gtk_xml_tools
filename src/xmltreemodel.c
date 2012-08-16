@@ -483,7 +483,7 @@ xml_list_finalize (GObject *object)
 		//xmlFreeDoc(xml_list->xpath_results);
 
 	if(xml_list->xmldoc)
-		//xmlFreeDoc(xml_list->xmldoc);
+		xmlFreeDoc(xml_list->xmldoc);
 	
 	xmlCleanupParser();
 
@@ -495,9 +495,7 @@ xml_list_finalize (GObject *object)
 /*****************************************************************************
  *
  *  xml_list_get_flags: tells the rest of the world whether our tree model
- *                         has any special characteristics. In our case, each
- *                         tree iter is valid as long as the row in question
- *                         exists, as it only contains a pointer to our struct.
+ *                         has any special characteristics.
  *
  *****************************************************************************/
  
@@ -560,7 +558,6 @@ xml_list_get_iter (GtkTreeModel *tree_model,
                       GtkTreePath  *path)
 {
 	XmlList		*xml_list;
-
  
 	g_assert(XML_IS_LIST(tree_model));
 	g_assert(path!=NULL);
@@ -572,16 +569,8 @@ xml_list_get_iter (GtkTreeModel *tree_model,
 
 	xmlNodePtr tree = xmlGetRoot(xml_list);
 	xmlNodePtr result;
-
-	GString *xpath = g_string_new("");
-		
-	for (int d = 0; d < depth; d++) {
-		g_string_append_printf(xpath,"%d:",indices[d]);
-	}
-
 	
 	if(tree != NULL) {
-
 		for (int d = 0; d < depth; d++) {
 			result = tree;
 			for(int i = 0; i < indices[d]; i++) {
@@ -598,14 +587,9 @@ xml_list_get_iter (GtkTreeModel *tree_model,
 	iter->user_data = result;
 	iter->stamp = xml_list->stamp; 
 	iter->user_data = result; 
-
-	g_string_free(xpath, TRUE);
 	
 	return TRUE; 
 }
-
-
-
 
 /*****************************************************************************
  *
@@ -627,7 +611,6 @@ xml_list_get_path (GtkTreeModel *tree_model,
 	xmlNodePtr tree = xmlDocGetRootElementN(xmlGetRoot(xmllist));
 	GtkTreePath *path = gtk_tree_path_new();
 	int i = 0;
-
 
 	while(node != tree && node != NULL) {
 		if(xmlPreviousElementSiblingN(node) == NULL) {
@@ -700,21 +683,30 @@ xml_list_get_value (GtkTreeModel *tree_model,
 		case XML_ATTRIBUTE_DECL:
 		case XML_ENTITY_DECL:
 		case XML_NAMESPACE_DECL:
+		{
 			g_value_set_string(value,xmlNodeGetContent(record));			
 			break;
+		}
+		case XML_DTD_NODE:
+		{
+			//xmlDtdPtr dtd = (xmlDtdPtr)record;
+			//g_value_set_string(value,dtd->SystemID);			
+			break;
+		}
 		case XML_DOCUMENT_NODE:
 		case XML_ELEMENT_NODE:
+		{
 			if(record->children) {
 				record = record->children;
 				while(xmlIsBlankNode(record)==1) {
 					record = record->next;
 				}
 				if(record->type == XML_TEXT_NODE)
-					g_value_set_string(value,xmlNodeGetContent(record));
+					g_value_set_stdring(value,g_strstrip(xmlNodeGetContent(record)));
 			}
-		}
 		break;
-			
+		}
+	}	
 	case XML_LIST_COL_LINE:
 		g_value_set_int(value, (gint) xmlGetLineNo(record));
 		break;

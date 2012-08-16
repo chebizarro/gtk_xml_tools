@@ -77,6 +77,7 @@ static void on_document_activate(G_GNUC_UNUSED GObject *object,
 	if(odoc != NULL) {
 		xml_list_add_file(xmllist, odoc->real_path);
 		xml_list_set_visible (xmllist, XML_DTD_NODE, TRUE);
+		xml_list_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
 		
 		/* Create filter with virtual root set to second branch*/
 		GtkTreePath *virtual_root;
@@ -126,8 +127,10 @@ void plugin_init(GeanyData *data)
 
 	navigator = xml_navigator_new();
 
+	/*
 	g_signal_connect(navigator, "navigator-selected",
 			G_CALLBACK(on_tree_view_refresh), NULL);
+	*/
 	
 	gtk_widget_show_all(navigator);
 

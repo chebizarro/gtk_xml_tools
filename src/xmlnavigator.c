@@ -128,7 +128,7 @@ make_toolbar(void)
 
 	/* attributes visible item */
 	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml_attribute_node"));
-	g_signal_connect(wid, "toggled", G_CALLBACK(xml_toggle_visible), XML_ATTRIBUTE_NODE);
+	//g_signal_connect(wid, "toggled", G_CALLBACK(xml_toggle_visible), XML_ATTRIBUTE_NODE);
 	gtk_container_add(GTK_CONTAINER(toolbar), wid);
 
 	/* DTD */
@@ -156,7 +156,7 @@ on_tree_view_button_press_event(GtkWidget *widget,
 								GdkEventButton *event,
 								gpointer       user_data)
 {
-	g_signal_emit_by_name ((gpointer) widget, "navigator-selected");
+	//g_signal_emit_by_name ((gpointer) widget, "navigator-selected");
 	return FALSE;
 }
 
