@@ -76,7 +76,7 @@ static void add_file(GtkWidget *source, gchar *file_path) {
 		filter = gtk_tree_model_filter_new( GTK_TREE_MODEL( xmllist ), virtual_root );
 		gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER( filter ), XML_LIST_COL_VISIBLE );
 		
-		xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(filter));	
+		xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(xmllist));	
 }
 
 
@@ -140,6 +140,9 @@ main (int argc, char *argv[])
 
 	gtk_window_set_keep_above(window, TRUE);
 
+	xml_icon_factory_new();
+
+	navigator = xml_navigator_new();
 
 	/* Create the Main Toolbar*/
 	GtkWidget *toolbar;
