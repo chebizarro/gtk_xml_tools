@@ -7,28 +7,28 @@ static void add_stock_icon (GtkIconFactory *factory,
 
 XmlNodeTypes XmlNodes[] =
 {
-	{ "xml_base_node", NULL },
-	{ "xml_element_node", "Element Node" },
-	{ "xml_attribute_node", "Attribute Node" }, 
-	{ "xml_text_node", "" }, 
-	{ "xml_cdata_section_node", "" }, 
-	{ "xml_entity_ref_node", "" }, 
-	{ "xml_entity_node", "" }, 
-	{ "xml_pi_node", "" }, 
-	{ "xml_comment_node", "" }, 
-	{ "xml_document_node", "" }, 
-	{ "xml_document_type_node", "" }, 
-	{ "xml_document_frag_node", "" }, 
-	{ "xml_notation_node", "" }, 
-	{ "xml_html_document_node", "" }, 
-	{ "xml_dtd_node", "" }, 
-	{ "xml_element_decl", "" }, 
-	{ "xml_attribute_decl", "" }, 
-	{ "xml_entity_decl", "" }, 
-	{ "xml_namespace_decl", "" }, 
-	{ "xml_xinclude_start", "" }, 
-	{ "xml_xinclude_end", "" }, 
-	{ "xml_docb_document_node", "" },
+	{ "xml-base-node", NULL },
+	{ "xml-element-node", "Element Node" },
+	{ "xml-attribute-node", "Attribute Node" }, 
+	{ "xml-text-node", "Text Node" }, 
+	{ "xml-cdata-section-node", "CDATA Node" }, 
+	{ "xml-entity-ref-node", "Entity Reference Node" }, 
+	{ "xml-entity-node", "Entity Node" }, 
+	{ "xml-pi-node", "Processing Instruction" }, 
+	{ "xml-comment-node", "Comment" }, 
+	{ "xml-document-node", "Document" }, 
+	{ "xml-document-type-node", "Document Type" }, 
+	{ "xml-document-frag-node", "" }, 
+	{ "xml-notation-node", "" }, 
+	{ "xml-html-document-node", "" }, 
+	{ "xml-dtd-node", "" }, 
+	{ "xml-element-decl", "" }, 
+	{ "xml-attribute-decl", "" }, 
+	{ "xml-entity-decl", "" }, 
+	{ "xml-namespace-decl", "" }, 
+	{ "xml-xinclude-start", "" }, 
+	{ "xml-xinclude-end", "" }, 
+	{ "xml-docb-document-node", "" },
 	{ NULL, NULL }
 };
 
@@ -42,7 +42,7 @@ xml_icon_factory_new() {
 	while (XmlNodes[i].stock_id != NULL)
 	{
 		gchar * iconpath;
-		iconpath = g_strconcat("/home/bizarro/Documents/Dev/gtk_xml_tools/gtk_xml_tools/icons/",XmlNodes[i].stock_id, ".png", NULL);
+		iconpath = g_strconcat(ICON_LOCATION,XmlNodes[i].stock_id, ".png", NULL);
 		add_stock_icon (factory, iconpath, XmlNodes[i].stock_id);
 		i++;
 	}

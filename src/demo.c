@@ -23,9 +23,14 @@
 
 #include <glib/gi18n.h>
 
+#include "xmltools.h"
 #include "xmltreemodel.h"
 #include "xmlnavigator.h"
 
+static XmlList		*xmllist;
+static GtkWidget	*navigator;
+static GtkWidget	*toolbar;
+static GtkWidget	*view,*tools_view_vbox;
 
 /* Shows the open file dialog and returns the selectd filepath */ 
 static gchar *show_open_dialog() {
@@ -60,77 +65,18 @@ static void add_file(GtkWidget *source, gchar *file_path) {
 	xmllist = xml_list_new();
 	xml_list_add_file(xmllist,file_path);
 
-	/* Set an xpath */
-	//xml_list_set_xpath (xmllist,"/*");	
-
-	/* Set DTD Nodes to visible -
-	 only applicable where there is a filter applied*/
 	xml_list_set_visible (xmllist, XML_DTD_NODE, TRUE);
-
-	view = create_view(xmllist);
-
+	xml_list_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
+		
 	/* Create filter with virtual root set to second branch*/
 	GtkTreePath *virtual_root;
-	virtual_root = gtk_tree_path_new_from_string("0");
-	
-	/* Create filter and set visible column */
-	GtkWidget *filter;
-	filter = gtk_tree_model_filter_new(xmllist, virtual_root );
-	gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER( filter ), XML_LIST_COL_VISIBLE );
-	g_object_unref( G_OBJECT( xmllist ) );
-
-	
-	//view = create_view(filter);
-	
-	/* Set searchable */
-	//gtk_tree_view_set_enable_search(view, TRUE);
-
-	GtkEntryCompletion *completion;
-	completion = gtk_entry_completion_new();
-	gtk_entry_completion_set_text_column(completion, 5);
-	gtk_entry_completion_set_inline_completion(completion, TRUE);
-	//g_object_set (completion, "text-column", XML_LIST_COL_XPATH, NULL);
-	gtk_entry_completion_set_model(completion, GTK_TREE_MODEL(xmllist));
-	g_object_unref(xmllist);
-	gtk_entry_set_completion(GTK_ENTRY(xpath_entry), completion);
-
-	GtkEntryCompletion *comp;
-	g_object_set (xpath_entry, "truncate-multiline", TRUE, NULL);
-
-	comp = gtk_entry_completion_new ();
-	gtk_entry_completion_set_popup_single_match (comp, FALSE);
-	gtk_entry_completion_set_minimum_key_length (comp, 0);
-
-	/* see docs for gtk_entry_completion_set_text_column() */
-	g_object_set (comp, "text-column", XML_LIST_COL_XPATH, NULL);
-
-	/* Need a match func here or entry completion uses a wrong one.
-	 * We do our own filtering after all. */
-	gtk_entry_completion_set_match_func (comp,
-										(GtkEntryCompletionMatchFunc) gtk_true,
-				   						xpath_entry,
-				   						NULL);
-	GtkCellRenderer *cell;
-	cell = gtk_cell_renderer_text_new ();
-	gtk_cell_layout_pack_start (GTK_CELL_LAYOUT (comp),
-                          		cell, TRUE);
-	gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (comp),
-                            		cell,
-                             	   "text", XML_LIST_COL_XPATH);
-
-	//g_signal_connect (comp, "match-selected",
-	//	    G_CALLBACK (match_selected_callback), xpath_entry);
-
-	//gtk_entry_set_completion (GTK_ENTRY (xpath_entry), comp);
-	g_object_unref (comp);
-	/* NB: This needs to happen after the completion is set, so this handler
-	 * runs before the handler installed by entrycompletion */
-	//g_signal_connect (chooser_entry, "key-press-event",
-    //              G_CALLBACK (xml_xpathentry_tab_handler), NULL);
-
-	
-	gtk_container_add(GTK_CONTAINER(files_view_vbox), view);	
-	gtk_widget_show_all(view);
+		virtual_root = gtk_tree_path_new_from_string("0");		
+		/* Create filter and set visible column */
+		GtkTreeModel *filter;
+		filter = gtk_tree_model_filter_new( GTK_TREE_MODEL( xmllist ), virtual_root );
+		gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER( filter ), XML_LIST_COL_VISIBLE );
+		
+		xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(filter));	
 }
 
 
@@ -158,46 +104,6 @@ static GtkWidget *make_toolbar(void)
 	gtk_container_add(GTK_CONTAINER(toolbar), wid);
 
 	return toolbar;
-}
-
-static GtkWidget *
-create_view (XmlList *list)
-{
-  GtkTreeViewColumn		*col;
-  GtkCellRenderer		*renderer;
-  GtkWidget				*view;
- 
-  view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(list));
- 
-  g_object_unref(list); /* destroy store automatically with view */
- 
-  renderer = gtk_cell_renderer_text_new();
-  col = gtk_tree_view_column_new();
- 
-  gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute (col, renderer, "text", XML_LIST_COL_NAME);
-  gtk_tree_view_column_set_title (col, "Name");
-	gtk_tree_view_column_set_resizable(col, TRUE);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(view),col);
- 
-  renderer = gtk_cell_renderer_text_new();
-  g_object_set(renderer,"ellipsize", PANGO_ELLIPSIZE_END, NULL);
-  col = gtk_tree_view_column_new();
-  gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute (col, renderer, "text", XML_LIST_COL_CONTENT);
-  gtk_tree_view_column_set_title (col, "Value");
-	gtk_tree_view_column_set_resizable(col, TRUE);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(view),col);
-
-  renderer = gtk_cell_renderer_text_new();
-	
-  col = gtk_tree_view_column_new();
-  gtk_tree_view_column_pack_start (col, renderer, TRUE);
-  gtk_tree_view_column_add_attribute (col, renderer, "text", XML_LIST_COL_XPATH);
-  gtk_tree_view_column_set_title (col, "Path");
-  gtk_tree_view_append_column(GTK_TREE_VIEW(view),col);	
-
-	return view;
 }
 
 static GtkWidget*
@@ -237,25 +143,12 @@ main (int argc, char *argv[])
 
 	/* Create the Main Toolbar*/
 	GtkWidget *toolbar;
-	tools_view_box = gtk_vbox_new(FALSE, 3);
+	tools_view_vbox = gtk_vbox_new(FALSE, 3);
 	toolbar = make_toolbar();
-	gtk_box_pack_start(GTK_BOX(tools_view_box), toolbar, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(tools_view_vbox), toolbar, FALSE, FALSE, 0);
 
-    gtk_box_pack_start(GTK_BOX(tools_view_box), make_xpath_entry(), FALSE, FALSE, 0);
-		gtk_container_set_border_width (GTK_CONTAINER (tools_view_box), 2);
-	/* create a new scrolled window. */
-    scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-	gtk_container_set_border_width (GTK_CONTAINER (scrolled_window), 2);
-	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
-                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_box_pack_start (GTK_BOX (tools_view_box), scrolled_window, TRUE, TRUE, 0);
-	files_view_vbox = gtk_vbox_new(FALSE, 0);
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), files_view_vbox);
-	
-	view = gtk_label_new ("Add a file");
-	
-	gtk_container_add(GTK_CONTAINER(files_view_vbox), view);	
-	gtk_container_add(GTK_CONTAINER(window), tools_view_box);
+	gtk_container_add(GTK_CONTAINER(tools_view_vbox), navigator);	
+	gtk_container_add(GTK_CONTAINER(window), tools_view_vbox);
 
 	gtk_widget_show_all(window);
 

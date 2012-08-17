@@ -702,7 +702,7 @@ xml_list_get_value (GtkTreeModel *tree_model,
 					record = record->next;
 				}
 				if(record->type == XML_TEXT_NODE)
-					g_value_set_stdring(value,g_strstrip(xmlNodeGetContent(record)));
+					g_value_set_string(value,g_strstrip(xmlNodeGetContent(record)));
 			}
 		break;
 		}

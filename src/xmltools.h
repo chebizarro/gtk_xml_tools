@@ -12,7 +12,7 @@
 #include <libxslt/transform.h>
 #include <libxslt/xsltutils.h>
 
-#define ICON_LOCATION "/path/to/icons/"
+#define ICON_LOCATION "/home/bizarro/Documents/Dev/gtk_xml_tools/icons/"
 
 typedef struct
 {
