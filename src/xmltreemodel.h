@@ -88,6 +88,9 @@ void	xml_list_add_file (XmlList   *xml_list, const gchar  *filename);
 
 void	xml_list_set_visible (XmlList *xml_list, gint nodetype, gboolean visible);
 
-void	xml_list_set_xpath(XmlList *xml_list, const gchar * xpath);
+void	xml_list_set_xpath(XmlList *xml_list, gchar * xpath);
+
+GtkListStore * xml_get_xpath_results(XmlList *xmllist, gchar *xpath);
+
                       
 #endif /* _xml_list_h_included_ */

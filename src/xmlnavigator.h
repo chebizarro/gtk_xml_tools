@@ -28,7 +28,9 @@ struct _XmlNavigator
 	GtkWidget	*scrolled_window;
 	GtkWidget	*navigator_view_vbox;
 	GtkWidget	*navigator_view;
+	GtkWidget	*xpath_view;
 	GtkWidget	*xpath_entry;
+	GtkWidget	*xpath_results;
 	
 	XmlList	*model;
 	

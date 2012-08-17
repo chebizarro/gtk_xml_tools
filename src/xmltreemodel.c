@@ -1031,7 +1031,7 @@ xml_list_set_visible (XmlList *xml_list, gint nodetype, gboolean visible) {
 }
 
 void
-xml_list_set_xpath(XmlList *xml_list, const gchar * xpath) {
+xml_list_set_xpath(XmlList *xml_list, gchar * xpath) {
 	GtkTreeIter   iter;
 	GtkTreePath *path;
 
@@ -1077,4 +1077,46 @@ xml_list_set_xpath(XmlList *xml_list, const gchar * xpath) {
 		}
 	}
 	return FALSE;
+}
+
+GtkListStore *
+xml_get_xpath_results(XmlList *xmllist, gchar *xpath)
+{
+	GtkListStore *list_store;
+	GtkTreeIter iter;
+	gint i, size, column;
+
+	list_store = gtk_list_store_newv (xmllist->n_columns,xmllist->column_types);
+
+	if(xmllist->xmldoc != NULL) {
+		xmlXPathObjectPtr xpath_results;
+
+		xpath_results = evaluate_xpath(xmllist->xmldoc, xpath);
+		
+		if(xpath_results != NULL) {
+		
+			size = (xpath_results->nodesetval) ? xpath_results->nodesetval->nodeNr : 0;
+
+			for(i = 0; i < size; ++i) {
+				xmlNodePtr record;
+				record = xpath_results->nodesetval->nodeTab[i];
+				iter.user_data = record;
+				
+				gtk_list_store_append (list_store, &iter);
+				
+				for(column = 0; column < xmllist->n_columns; ++column) {
+					GValue * value;
+					xml_list_get_value(GTK_TREE_MODEL(xmllist), &iter, column, value);
+					gtk_list_store_set_value (	list_store,
+												&iter,
+												column,
+												value
+												);
+					g_value_unset(value);
+				}
+			}
+			xmlXPathFreeObject(xpath_results);
+		}
+	}
+	return list_store;
 }
