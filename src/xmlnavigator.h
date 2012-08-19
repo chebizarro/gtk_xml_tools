@@ -40,7 +40,10 @@ struct _XmlNavigatorClass
 {
 	GtkVBoxClass parent_class;
 
-	void (* navigator_selected) (XmlNavigator *ttt);
+	/* signals */
+	void (* xml_row_activated) (XmlNavigator *ttt);
+	void (* xml_row_expanded) (XmlNavigator *ttt);
+	void (* xml_row_collapsed) (XmlNavigator *ttt);
 };
 
 GType		xml_navigator_get_type	(void);

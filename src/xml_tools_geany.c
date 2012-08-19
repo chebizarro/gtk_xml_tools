@@ -50,15 +50,17 @@ static XmlList	*xmllist;
 static GtkWidget	*navigator;
 
 
-/* Display plugin help */
+static gboolean change_focus_to_editor(GeanyDocument *doc);
+
+
 void plugin_help(void) {
+ //TODO
 }
 
 
 
 static gboolean change_focus_to_editor(GeanyDocument *doc)
 {
-	/* idx might not be valid e.g. if user closed a tab whilst Geany is opening files */
 	if (DOC_VALID(doc))
 	{
 		gtk_window_get_focus(GTK_WINDOW(geany->main_widgets->window));
@@ -105,14 +107,27 @@ static void on_document_close(G_GNUC_UNUSED GObject *object,
 	xml_navigator_set_model(XML_NAVIGATOR(navigator),XML_LIST(xmllist));
 }
 
-void	on_tree_view_refresh(	GtkTreeModel *tree_model,
-								GtkTreePath  *path,
-								GtkTreeIter  *iter,
-								gpointer      user_data)
+static gboolean
+on_navigator_activated(	GtkWidget *widget,
+						GtkTreeSelection *selection)
 {
-	//gtk_tree_view_expand_row();
-}
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	gint line = 0;
 
+	if (gtk_tree_selection_get_selected(selection, &model, &iter))
+	{
+		gtk_tree_model_get(model, &iter, XML_LIST_COL_LINE, &line, -1);
+		if (line > 0)
+		{
+			GeanyDocument *doc;
+			doc = document_get_current();
+			navqueue_goto_line(doc, doc, line);
+			change_focus_to_editor(doc);
+		}
+	}
+	return FALSE;
+}
 /* Plugin initialisation */
 void plugin_init(GeanyData *data)
 {
@@ -122,16 +137,11 @@ void plugin_init(GeanyData *data)
 	
 	xmllist = xml_list_new();
 
-	g_signal_connect(xmllist, "row-has-child-toggled",
-			G_CALLBACK(on_tree_view_refresh), NULL);
-
 	navigator = xml_navigator_new();
 
-	/*
-	g_signal_connect(navigator, "navigator-selected",
-			G_CALLBACK(on_tree_view_refresh), NULL);
-	*/
-	
+	g_signal_connect(navigator, "xml-row-activated",
+			G_CALLBACK(on_navigator_activated), NULL);
+				
 	gtk_widget_show_all(navigator);
 
 	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), navigator, gtk_label_new(_("XML/XSLT Tools")));

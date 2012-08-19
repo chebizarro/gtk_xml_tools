@@ -20,7 +20,6 @@
 #include <config.h>
 #include <gtk/gtk.h>
 
-
 #include <glib/gi18n.h>
 
 #include "xmltools.h"
@@ -106,6 +105,28 @@ static GtkWidget *make_toolbar(void)
 	return toolbar;
 }
 
+static on_tree_view_refresh(GtkWidget *widget, GdkEventButton * data) {
+
+}
+
+static gboolean
+on_navigator_activated(	GtkWidget *widget,
+						GtkTreeSelection *selection)
+{
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	gint line = 0;
+
+	if (gtk_tree_selection_get_selected(selection, &model, &iter))
+	{
+		gtk_tree_model_get(model, &iter, XML_LIST_COL_LINE, &line, -1);
+		if (line > 0)
+		{
+		}
+	}
+	return FALSE;
+}
+
 static GtkWidget*
 create_window (void)
 {
@@ -143,6 +164,9 @@ main (int argc, char *argv[])
 	xml_icon_factory_new();
 
 	navigator = xml_navigator_new();
+
+	g_signal_connect(navigator, "xml-row-activated",
+			G_CALLBACK(on_navigator_activated), NULL);
 
 	/* Create the Main Toolbar*/
 	GtkWidget *toolbar;
