@@ -10,6 +10,7 @@ enum {
 	ROW_COLLAPSED_SIGNAL,
 	ROW_EXPANDED_SIGNAL,
 	BUTTON_PRESS_EVENT,
+	MODEL_CHANGED,
 	LAST_SIGNAL
 };
 
@@ -18,7 +19,7 @@ static void xml_navigator_init				(XmlNavigator			*ttt);
 
 static GtkWidget * make_navigator_view(XmlNavigator *ttt);
 static GtkWidget * make_scrolled_window(void);
-static GtkWidget * make_toolbar(void);
+static GtkWidget * make_toolbar(XmlNavigator * ttt);
 static GtkWidget * make_xpath_entry(XmlNavigator *ttt, XmlList * xmllist);
 
 static guint xml_navigator_signals[LAST_SIGNAL] = { 0 };
@@ -56,7 +57,7 @@ xml_navigator_class_init (XmlNavigatorClass *klass)
 												NULL, 
 												NULL,								
 												g_cclosure_marshal_VOID__POINTER,
-												G_TYPE_NONE, 1, G_TYPE_POINTER);
+												G_TYPE_BOOLEAN, 1, G_TYPE_POINTER);
 
 	xml_navigator_signals[ROW_COLLAPSED_SIGNAL] = g_signal_new ("xml-row-collapsed",
 												G_TYPE_FROM_CLASS (klass),
@@ -76,6 +77,16 @@ xml_navigator_class_init (XmlNavigatorClass *klass)
 												g_cclosure_marshal_VOID__POINTER,
 												G_TYPE_NONE, 1, G_TYPE_POINTER);
 
+	xml_navigator_signals[MODEL_CHANGED] = g_signal_new ("xml-model-changed",
+												G_TYPE_FROM_CLASS (klass),
+												G_SIGNAL_RUN_FIRST,
+												G_STRUCT_OFFSET (XmlNavigatorClass, xml_model_changed),
+												NULL, 
+												NULL,								
+												g_cclosure_marshal_VOID__POINTER,
+												G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+
 }
 
 
@@ -87,7 +98,7 @@ xml_navigator_init (XmlNavigator *ttt)
 	//ttt->xpath_view = make_xpath_entry(ttt, NULL);
     //gtk_box_pack_start(GTK_BOX(ttt), ttt->xpath_view, FALSE, FALSE, 0);
 
-	ttt->toolbar = make_toolbar();
+	ttt->toolbar = make_toolbar(ttt);
 	gtk_box_pack_start(GTK_BOX(ttt), ttt->toolbar, FALSE, FALSE, 0);
 
     ttt->scrolled_window = make_scrolled_window();
@@ -113,6 +124,8 @@ xml_navigator_set_model(XmlNavigator *ttt, XmlList * xmllist)
 {
 	ttt->model = xmllist;
 	gtk_tree_view_set_model(ttt->navigator_view, GTK_TREE_MODEL(xmllist));	
+	g_signal_emit(ttt, xml_navigator_signals[MODEL_CHANGED],0,NULL);
+
 }
 
 static GtkWidget *
@@ -126,15 +139,23 @@ make_scrolled_window(void)
 	return scroll_win;
 }
 
-void xml_toggle_visible(GtkToggleToolButton *toggle_tool_button, xmlElementType node) {
+static void
+xml_toggle_visible(	GtkToggleToolButton *toggle_tool_button,
+					xmlElementType node) {
+	//if(XmlNodes[node].)
+		
+}
+
+static XmlToolBarButton * make_toolbar_button(xmlElement type) {
+	
 	
 }
 
 static GtkWidget *
-make_toolbar(void)
+make_toolbar(XmlNavigator * ttt)
 {
 	GtkWidget *wid, *toolbar;
-
+	
 	/* Create the toolbar object and initialise it*/
 	toolbar = gtk_toolbar_new();
 	gtk_toolbar_set_icon_size(GTK_TOOLBAR(toolbar), GTK_ICON_SIZE_MENU);
@@ -143,7 +164,10 @@ make_toolbar(void)
 	/* attributes visible item */
 	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml-attribute-node"));
 	//g_signal_connect(wid, "toggled", G_CALLBACK(xml_toggle_visible), XML_ATTRIBUTE_NODE);
+	g_signal_connect(ttt, "xml-model-changed", G_CALLBACK(xml_toggle_visible), wid, XML_ATTRIBUTE_NODE);
 	gtk_container_add(GTK_CONTAINER(toolbar), wid);
+	//if(model != NULL)
+	//gtk_toggle_tool_button_set_active(wid, model->row_visible[XML_ATTRIBUTE_NONE]);
 
 	/* DTD */
 	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml-dtd-node"));
@@ -181,10 +205,11 @@ xml_navigator_row_activated(GtkTreeView	*tree_view,
                             XmlNavigator *ttt)
 {
 	GtkTreeSelection *selection;
+	gboolean return_value = FALSE;
 	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree_view));
 
-	g_signal_emit(ttt, xml_navigator_signals[ROW_ACTIVATED_SIGNAL],0,selection);
-	return FALSE;
+	g_signal_emit(ttt, xml_navigator_signals[ROW_ACTIVATED_SIGNAL],0,selection, &return_value);
+	return return_value;
 }
 
 static gboolean
@@ -270,7 +295,8 @@ make_navigator_view (XmlNavigator * ttt)
 	return view;
 }
 
-static run_xpath(GtkButton * runxpath, XmlNavigator *ttt ) {
+static void
+run_xpath(GtkButton * runxpath, XmlNavigator *ttt ) {
 	GtkListStore * xpath_result;
 	gchar * xpath = gtk_entry_get_text(GTK_ENTRY(ttt->xpath_entry));	
 	xpath_result = xml_get_xpath_results(ttt->model, xpath);

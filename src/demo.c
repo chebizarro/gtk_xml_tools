@@ -124,7 +124,7 @@ on_navigator_activated(	GtkWidget *widget,
 		{
 		}
 	}
-	return FALSE;
+	return TRUE;
 }
 
 static GtkWidget*

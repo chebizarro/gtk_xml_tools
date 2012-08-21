@@ -17,8 +17,10 @@ G_BEGIN_DECLS
 #define IS_XML_NAVIGATOR(obj)			(G_TYPE_CHECK_INSTANCE_TYPE ((obj), XML_NAVIGATOR_TYPE))
 #define IS_XML_NAVIGATOR_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE ((klass), XML_NAVIGATOR_TYPE))
 
-typedef struct _XmlNavigator			XmlNavigator;
+typedef struct _XmlNavigator		XmlNavigator;
 typedef struct _XmlNavigatorClass	XmlNavigatorClass;
+
+typedef struct _XmlToolBarButton	XmlToolBarButton;
 
 struct _XmlNavigator
 {
@@ -41,10 +43,18 @@ struct _XmlNavigatorClass
 	GtkVBoxClass parent_class;
 
 	/* signals */
-	void (* xml_row_activated) (XmlNavigator *ttt);
-	void (* xml_row_expanded) (XmlNavigator *ttt);
-	void (* xml_row_collapsed) (XmlNavigator *ttt);
+	void (* xml_row_activated)	(XmlNavigator *ttt);
+	void (* xml_row_expanded)	(XmlNavigator *ttt);
+	void (* xml_row_collapsed)	(XmlNavigator *ttt);
+	void (* xml_model_changed)	(XmlNavigator *ttt);
+
 };
+
+struct _XmlToolBarButton
+{
+	GtkWidget			*button;
+	xmlElementType	*type;
+}
 
 GType		xml_navigator_get_type	(void);
 GtkWidget*	xml_navigator_new		(void);
