@@ -66,16 +66,9 @@ static void add_file(GtkWidget *source, gchar *file_path) {
 
 	xml_list_set_visible (xmllist, XML_DTD_NODE, TRUE);
 	xml_list_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
-		
-	/* Create filter with virtual root set to second branch*/
-	GtkTreePath *virtual_root;
-		virtual_root = gtk_tree_path_new_from_string("0");		
-		/* Create filter and set visible column */
-		GtkTreeModel *filter;
-		filter = gtk_tree_model_filter_new( GTK_TREE_MODEL( xmllist ), virtual_root );
-		gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER( filter ), XML_LIST_COL_VISIBLE );
-		
-		xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(xmllist));	
+
+	xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(xmllist));	
+
 }
 
 
@@ -110,13 +103,13 @@ static on_tree_view_refresh(GtkWidget *widget, GdkEventButton * data) {
 }
 
 static gboolean
-on_navigator_activated(	GtkWidget *widget,
+on_navigator_activated(	XmlNavigator *widget,
 						GtkTreeSelection *selection)
 {
 	GtkTreeIter iter;
 	GtkTreeModel *model;
 	gint line = 0;
-
+	
 	if (gtk_tree_selection_get_selected(selection, &model, &iter))
 	{
 		gtk_tree_model_get(model, &iter, XML_LIST_COL_LINE, &line, -1);

@@ -19,8 +19,8 @@
 #define XML_TYPE_LIST				(xml_list_get_type ())
 #define XML_LIST(obj)				(G_TYPE_CHECK_INSTANCE_CAST ((obj), XML_TYPE_LIST, XmlList))
 #define XML_LIST_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST ((klass),	XML_TYPE_LIST, XmlListClass))
-#define XML_IS_LIST(obj)				(G_TYPE_CHECK_INSTANCE_TYPE ((obj), XML_TYPE_LIST))
-#define XML_IS_LIST_CLASS(klass)		(G_TYPE_CHECK_CLASS_TYPE ((klass),	XML_TYPE_LIST))
+#define XML_IS_LIST(obj)			(G_TYPE_CHECK_INSTANCE_TYPE ((obj), XML_TYPE_LIST))
+#define XML_IS_LIST_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE ((klass),	XML_TYPE_LIST))
 #define XML_LIST_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS ((obj),	XML_TYPE_LIST, XmlListClass))
  
 /* The data columns that we export via the tree model interface */
@@ -59,7 +59,7 @@ struct _XmlList
 
 	gchar		*xpath;
 	
-	
+	gchar		*filename;
 	/* These two fields are not absolutely necessary, but they		*/
 	/*	 speed things up a bit in our get_value implementation		*/
 	gint		n_columns;
@@ -86,7 +86,9 @@ XmlList	*xml_list_new (void);
 
 void	xml_list_add_file (XmlList   *xml_list, const gchar  *filename);
 
-void	xml_list_set_visible (XmlList *xml_list, gint nodetype, gboolean visible);
+void	xml_list_set_visible (XmlList *xmllist, xmlElementType nodetype, gboolean visible);
+
+gboolean	xml_list_get_visible (XmlList *xmllist, xmlElementType nodetype);
 
 void	xml_list_set_xpath(XmlList *xml_list, gchar * xpath);
 

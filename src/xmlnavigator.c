@@ -2,7 +2,8 @@
  *	Custom Widget Template
  *
  */
- 
+
+#include "xmltools.h"
 #include "xmlnavigator.h"
 
 enum {
@@ -14,13 +15,14 @@ enum {
 	LAST_SIGNAL
 };
 
-static void xml_navigator_class_init		(XmlNavigatorClass *klass);
-static void xml_navigator_init				(XmlNavigator			*ttt);
+static void xml_navigator_class_init		(XmlNavigatorClass 	*klass);
+static void xml_navigator_init				(XmlNavigator		*ttt);
 
 static GtkWidget * make_navigator_view(XmlNavigator *ttt);
 static GtkWidget * make_scrolled_window(void);
 static GtkWidget * make_toolbar(XmlNavigator * ttt);
 static GtkWidget * make_xpath_entry(XmlNavigator *ttt, XmlList * xmllist);
+static GtkTreeModel * create_filter(XmlList * xmllist);
 
 static guint xml_navigator_signals[LAST_SIGNAL] = { 0 };
 
@@ -57,7 +59,7 @@ xml_navigator_class_init (XmlNavigatorClass *klass)
 												NULL, 
 												NULL,								
 												g_cclosure_marshal_VOID__POINTER,
-												G_TYPE_BOOLEAN, 1, G_TYPE_POINTER);
+												G_TYPE_NONE, 1, G_TYPE_POINTER);
 
 	xml_navigator_signals[ROW_COLLAPSED_SIGNAL] = g_signal_new ("xml-row-collapsed",
 												G_TYPE_FROM_CLASS (klass),
@@ -94,9 +96,9 @@ xml_navigator_class_init (XmlNavigatorClass *klass)
 static void
 xml_navigator_init (XmlNavigator *ttt)
 {
+	ttt->xpath_view = make_xpath_entry(ttt, NULL);
+    gtk_box_pack_start(GTK_BOX(ttt), ttt->xpath_view, TRUE, FALSE, 0);
 
-	//ttt->xpath_view = make_xpath_entry(ttt, NULL);
-    //gtk_box_pack_start(GTK_BOX(ttt), ttt->xpath_view, FALSE, FALSE, 0);
 
 	ttt->toolbar = make_toolbar(ttt);
 	gtk_box_pack_start(GTK_BOX(ttt), ttt->toolbar, FALSE, FALSE, 0);
@@ -123,9 +125,21 @@ void
 xml_navigator_set_model(XmlNavigator *ttt, XmlList * xmllist)
 {
 	ttt->model = xmllist;
-	gtk_tree_view_set_model(ttt->navigator_view, GTK_TREE_MODEL(xmllist));	
-	g_signal_emit(ttt, xml_navigator_signals[MODEL_CHANGED],0,NULL);
+	ttt->filter = create_filter(xmllist);
+	gtk_tree_view_set_model(ttt->navigator_view, GTK_TREE_MODEL(ttt->filter));	
+	g_signal_emit(ttt, xml_navigator_signals[MODEL_CHANGED],0,xmllist);
 
+}
+
+static GtkTreeModel * create_filter(XmlList * xmllist) {
+	/* Create filter with virtual root set to second branch*/
+	GtkTreePath *virtual_root;
+	virtual_root = gtk_tree_path_new_from_string("0");		
+	/* Create filter and set visible column */
+	GtkTreeModel *filter;
+	filter = gtk_tree_model_filter_new( GTK_TREE_MODEL( xmllist ), virtual_root );
+	gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER( filter ), XML_LIST_COL_VISIBLE );
+	return filter;
 }
 
 static GtkWidget *
@@ -139,51 +153,68 @@ make_scrolled_window(void)
 	return scroll_win;
 }
 
-static void
-xml_toggle_visible(	GtkToggleToolButton *toggle_tool_button,
-					xmlElementType node) {
-	//if(XmlNodes[node].)
-		
+static gboolean
+toolbar_button_toggle(GtkToggleToolButton *button,
+                      XmlNavigator * ttt)
+{
+	gboolean toggle;
+	int i = 0;
+	
+	toggle = (gtk_toggle_tool_button_get_active(button)) ? TRUE : FALSE;
+	
+	while(ttt->toolbar_buttons[i].button != button) {
+		++i;
+	}
+	
+	xml_list_set_visible (ttt->model, ttt->toolbar_buttons[i].type, toggle);
+	gtk_tree_model_filter_refilter(ttt->filter);
+	return TRUE;
 }
 
-static XmlToolBarButton * make_toolbar_button(xmlElement type) {
-	
-	
+static gboolean
+xml_toggle_visible(XmlNavigator *ttt,
+                   XmlList * xmllist,
+                   XmlToolBarButton *button)
+{
+	button->model = ttt->model;	
+	gtk_widget_set_sensitive (button->button, TRUE);
+	gtk_toggle_tool_button_set_active(button->button, xml_list_get_visible (xmllist, button->type));
+	g_signal_connect(button->button, "toggled", G_CALLBACK(toolbar_button_toggle), ttt);
+	return TRUE;
+}
+
+static
+make_toolbar_button(XmlNavigator	 *ttt,
+					xmlElementType	 type,
+    	            XmlToolBarButton * button)
+{
+	button->button = gtk_toggle_tool_button_new_from_stock(XmlNodes[type].stock_id);
+	gtk_widget_set_sensitive (button->button, FALSE);
+	button->type = type;
+	g_signal_connect(ttt, "xml-model-changed", G_CALLBACK(xml_toggle_visible), button);
 }
 
 static GtkWidget *
 make_toolbar(XmlNavigator * ttt)
 {
-	GtkWidget *wid, *toolbar;
-	
+	GtkWidget 	*toolbar;
+
+	make_toolbar_button(ttt,XML_ATTRIBUTE_NODE, &ttt->toolbar_buttons[0]);
+	make_toolbar_button(ttt,XML_DTD_NODE, &ttt->toolbar_buttons[1]);
+	make_toolbar_button(ttt,XML_COMMENT_NODE, &ttt->toolbar_buttons[2]);
+	make_toolbar_button(ttt,XML_PI_NODE, &ttt->toolbar_buttons[3]);
+	make_toolbar_button(ttt,XML_TEXT_NODE, &ttt->toolbar_buttons[4]);
+	make_toolbar_button(ttt,XML_CDATA_SECTION_NODE, &ttt->toolbar_buttons[5]);
+
 	/* Create the toolbar object and initialise it*/
 	toolbar = gtk_toolbar_new();
 	gtk_toolbar_set_icon_size(GTK_TOOLBAR(toolbar), GTK_ICON_SIZE_MENU);
 	gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_ICONS);
 
-	/* attributes visible item */
-	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml-attribute-node"));
-	//g_signal_connect(wid, "toggled", G_CALLBACK(xml_toggle_visible), XML_ATTRIBUTE_NODE);
-	g_signal_connect(ttt, "xml-model-changed", G_CALLBACK(xml_toggle_visible), wid, XML_ATTRIBUTE_NODE);
-	gtk_container_add(GTK_CONTAINER(toolbar), wid);
-	//if(model != NULL)
-	//gtk_toggle_tool_button_set_active(wid, model->row_visible[XML_ATTRIBUTE_NONE]);
-
-	/* DTD */
-	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml-dtd-node"));
-	gtk_container_add(GTK_CONTAINER(toolbar), wid);
-
-	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml-comment-node"));
-	gtk_container_add(GTK_CONTAINER(toolbar), wid);
-
-	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml-pi-node"));
-	gtk_container_add(GTK_CONTAINER(toolbar), wid);
-
-	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml-text-node"));
-	gtk_container_add(GTK_CONTAINER(toolbar), wid);
-
-	wid = GTK_WIDGET(gtk_toggle_tool_button_new_from_stock("xml-cdata-section-node"));
-	gtk_container_add(GTK_CONTAINER(toolbar), wid);
+	for(int i=0;i<6;++i)
+	{
+		gtk_container_add(GTK_CONTAINER(toolbar), ttt->toolbar_buttons[i].button);
+	}
 
 
 	return toolbar;
@@ -240,15 +271,14 @@ xml_navigator_row_expanded(	GtkTreeView *tree_view,
 static GtkWidget *
 make_navigator_view (XmlNavigator * ttt)
 {
-	//if(xmllist == NULL)
-	//	return gtk_label_new ("Add a file");
-
-	GtkTreeViewColumn		*col;
+	g_return_if_fail(ttt != NULL);
+	
+	GtkTreeViewColumn	*col;
 	GtkCellRenderer		*renderer, *icon_renderer;
-	GtkWidget				*view;
+	GtkWidget			*view;
  
-	view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(ttt->model));
- 	//g_object_unref(ttt->model); /* destroy store automatically with view */
+	view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(ttt->filter));
+ 	g_object_unref(ttt->filter); /* destroy store automatically with view */
 
 	//g_signal_connect(view, "button-press-event",
 	//		G_CALLBACK(xml_navigator_button_press_event), ttt);
@@ -262,8 +292,7 @@ make_navigator_view (XmlNavigator * ttt)
 	g_signal_connect(view, "row-collapsed",
 			G_CALLBACK(xml_navigator_row_collapsed), ttt);
 
- 
-	col = gtk_tree_view_column_new();
+ 	col = gtk_tree_view_column_new();
  
  	gtk_tree_view_column_set_title (col, "Name");
 	gtk_tree_view_column_set_resizable(col, TRUE);
@@ -306,14 +335,6 @@ run_xpath(GtkButton * runxpath, XmlNavigator *ttt ) {
 static GtkWidget *
 make_xpath_entry (XmlNavigator *ttt, XmlList *xmllist) {
 	
-	/* The results expander */
-	GtkWidget *results_expander; 
-	results_expander = gtk_expander_new("Results");
-	gtk_expander_set_expanded(GTK_EXPANDER(results_expander), TRUE);
-	ttt->xpath_results = make_navigator_view(NULL);
-	gtk_container_add(GTK_CONTAINER(results_expander), ttt->xpath_results);	
-	
-
 	GtkWidget * xpath_frame;
 	xpath_frame = gtk_vbox_new(FALSE, 3);
 	//gtk_frame_set_shadow_type(GTK_FRAME(xpath_frame), GTK_SHADOW_IN);
@@ -326,7 +347,7 @@ make_xpath_entry (XmlNavigator *ttt, XmlList *xmllist) {
 	/* Label and entry */
 	GtkWidget *xlabel;
 	xlabel = gtk_label_new("XPath:");
-	gtk_box_pack_start(GTK_BOX(hbox), xlabel,FALSE , TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), xlabel,FALSE, TRUE, 0);
 	ttt->xpath_entry = gtk_entry_new();
     gtk_box_pack_start(GTK_BOX(hbox), ttt->xpath_entry, TRUE, TRUE, 0);
 	
@@ -337,7 +358,23 @@ make_xpath_entry (XmlNavigator *ttt, XmlList *xmllist) {
     gtk_box_pack_start(GTK_BOX(hbox), runxpath, TRUE, TRUE, 0);
 
 	gtk_container_add(GTK_CONTAINER(xpath_frame), hbox);
-	gtk_container_add(GTK_CONTAINER(xpath_frame), results_expander);
+
+	/* The results expander */
+	GtkWidget *results_expander; 
+	results_expander = gtk_expander_new("Results");
+	gtk_expander_set_expanded(GTK_EXPANDER(results_expander), TRUE);
+	//gtk_container_add(GTK_CONTAINER(xpath_frame), results_expander);
+
+	GtkWidget *scrolled_window;
+	scrolled_window = make_scrolled_window();
+    gtk_box_pack_start (xpath_frame, scrolled_window, TRUE, TRUE, 0);
+	//gtk_container_add(GTK_CONTAINER(results_expander), scrolled_window);
+
+	GtkWidget * view_vbox = gtk_vbox_new(TRUE, 0);
+	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), view_vbox);
+
+	ttt->xpath_results = make_navigator_view(ttt);
+	gtk_container_add(GTK_CONTAINER(view_vbox), ttt->xpath_results);	
 
 	return xpath_frame;
 }

@@ -977,8 +977,8 @@ xml_list_new (void)
  *****************************************************************************/
  
 void
-xml_list_add_file (XmlList   *xml_list,
-                      const gchar  *filename)
+xml_list_add_file (	XmlList		*xml_list,
+					const gchar		*filename)
 {
 	xmlDocPtr	xdoc = NULL;
 
@@ -997,10 +997,7 @@ xml_list_add_file (XmlList   *xml_list,
 	gtk_tree_model_row_has_child_toggled(GTK_TREE_MODEL(xml_list),path, &iter);
 	gtk_tree_path_free(path);
 
-	if(xdoc != NULL) {
-
-		//xml_list = xml_list_new();
-		
+	if(xdoc != NULL) {		
 		if(xml_list->xmldoc)
 			xmlFreeDoc(xml_list->xmldoc);
 
@@ -1010,6 +1007,8 @@ xml_list_add_file (XmlList   *xml_list,
 		//xml_list = xml_list_new();
 		xml_list->xmldoc = throw_xml_error();
 	}
+	
+	xml_list->filename = filename;
 	
 	xml_list->stamp = g_random_int();  /* Random int to check whether an iter belongs to our model */
 
@@ -1022,12 +1021,21 @@ xml_list_add_file (XmlList   *xml_list,
 }
  
 void
-xml_list_set_visible (XmlList *xml_list, gint nodetype, gboolean visible) {
-	g_return_if_fail (XML_IS_LIST(xml_list));
+xml_list_set_visible (XmlList *xmllist, xmlElementType nodetype, gboolean visible)
+{
+	g_return_if_fail (XML_IS_LIST(xmllist));
 	//g_return_if_fail (nodetype == xmlElementType);
 
-	xml_list->row_visible[nodetype] = visible;
+	xmllist->row_visible[nodetype] = visible;
 	
+}
+
+gboolean
+xml_list_get_visible (XmlList *xmllist, xmlElementType nodetype)
+{
+	g_return_if_fail(XML_IS_LIST(xmllist));
+
+	return xmllist->row_visible[nodetype];
 }
 
 void

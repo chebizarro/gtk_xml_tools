@@ -80,16 +80,8 @@ static void on_document_activate(G_GNUC_UNUSED GObject *object,
 		xml_list_add_file(xmllist, odoc->real_path);
 		xml_list_set_visible (xmllist, XML_DTD_NODE, TRUE);
 		xml_list_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
-		
-		/* Create filter with virtual root set to second branch*/
-		GtkTreePath *virtual_root;
-		virtual_root = gtk_tree_path_new_from_string("0");		
-		/* Create filter and set visible column */
-		GtkTreeModel *filter;
-		filter = gtk_tree_model_filter_new( GTK_TREE_MODEL( xmllist ), virtual_root );
-		gtk_tree_model_filter_set_visible_column(GTK_TREE_MODEL_FILTER( filter ), XML_LIST_COL_VISIBLE );
-		
-		xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(filter));
+	
+		xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(xmllist));
 	}
 }
 

@@ -22,6 +22,14 @@ typedef struct _XmlNavigatorClass	XmlNavigatorClass;
 
 typedef struct _XmlToolBarButton	XmlToolBarButton;
 
+struct _XmlToolBarButton
+{
+	GtkToggleToolButton		*button;
+	xmlElementType		type;
+	XmlList				*model;
+	
+};
+
 struct _XmlNavigator
 {
 	GtkVBox		widget;
@@ -33,8 +41,12 @@ struct _XmlNavigator
 	GtkWidget	*xpath_view;
 	GtkWidget	*xpath_entry;
 	GtkWidget	*xpath_results;
+
+	XmlToolBarButton	toolbar_buttons[6];
 	
 	XmlList	*model;
+	GtkTreeModel *filter;
+	
 	
 };
 
@@ -49,12 +61,6 @@ struct _XmlNavigatorClass
 	void (* xml_model_changed)	(XmlNavigator *ttt);
 
 };
-
-struct _XmlToolBarButton
-{
-	GtkWidget			*button;
-	xmlElementType	*type;
-}
 
 GType		xml_navigator_get_type	(void);
 GtkWidget*	xml_navigator_new		(void);
