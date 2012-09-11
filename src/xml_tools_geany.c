@@ -29,6 +29,7 @@
 #include "xmltools.h"
 #include "xmltreemodel.h"
 #include "xmlnavigator.h"
+#include "xpathexplorer.h"
 
 #include "geanyplugin.h"
 
@@ -46,8 +47,8 @@ GeanyData		*geany_data;
 GeanyFunctions	*geany_functions;
 
 static gint		page_number = 0;
-static XmlList	*xmllist;
-static GtkWidget	*navigator;
+static xmlTreeModel	*xmllist;
+static GtkWidget	*navigator, *transformer, *explorer;
 
 
 static gboolean change_focus_to_editor(GeanyDocument *doc);
@@ -72,16 +73,16 @@ static gboolean change_focus_to_editor(GeanyDocument *doc)
 
 
 static void on_document_activate(G_GNUC_UNUSED GObject *object,
-								GeanyDocument *doc, XmlList * data)
+								GeanyDocument *doc, xmlTreeModel * data)
 {
 	GeanyDocument *odoc;
 	odoc = document_get_current();
 	if(odoc != NULL) {
-		xml_list_add_file(xmllist, odoc->real_path);
-		xml_list_set_visible (xmllist, XML_DTD_NODE, TRUE);
-		xml_list_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
+		xml_tree_model_add_file(xmllist, odoc->real_path);
+		xml_tree_model_set_visible (xmllist, XML_DTD_NODE, TRUE);
+		xml_tree_model_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
 	
-		xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(xmllist));
+		xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_TREE_MODEL(xmllist));
 	}
 }
 
@@ -92,11 +93,11 @@ static void on_document_close(G_GNUC_UNUSED GObject *object,
 	GeanyDocument *odoc;
 	odoc = document_get_current();
 	if(odoc != NULL) {
-		xml_list_add_file(xmllist, odoc->real_path);
+		xml_tree_model_add_file(xmllist, odoc->real_path);
 	} else {
-		xml_list_add_file(xmllist, NULL);
+		xml_tree_model_add_file(xmllist, NULL);
 	}
-	xml_navigator_set_model(XML_NAVIGATOR(navigator),XML_LIST(xmllist));
+	xml_navigator_set_model(XML_NAVIGATOR(navigator),XML_TREE_MODEL(xmllist));
 }
 
 static gboolean
@@ -109,7 +110,7 @@ on_navigator_activated(	GtkWidget *widget,
 
 	if (gtk_tree_selection_get_selected(selection, &model, &iter))
 	{
-		gtk_tree_model_get(model, &iter, XML_LIST_COL_LINE, &line, -1);
+		gtk_tree_model_get(model, &iter, XML_TREE_MODEL_COL_LINE, &line, -1);
 		if (line > 0)
 		{
 			GeanyDocument *doc;
@@ -127,16 +128,26 @@ void plugin_init(GeanyData *data)
 
 	xml_icon_factory_new();
 	
-	xmllist = xml_list_new();
+	xmllist = xml_tree_model_new();
 
 	navigator = xml_navigator_new();
+
+	transformer = xslt_transformer_new();
+	
+	explorer = xpath_explorer_new();
 
 	g_signal_connect(navigator, "xml-row-activated",
 			G_CALLBACK(on_navigator_activated), NULL);
 				
 	gtk_widget_show_all(navigator);
+	gtk_widget_show_all(transformer);
+	//gtk_widget_show_all(explorer);
 
-	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), navigator, gtk_label_new(_("XML/XSLT Tools")));
+	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), navigator, gtk_label_new(_("XML Navigator")));
+
+	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), transformer, gtk_label_new(_("XSLT Transformer")));
+
+	//page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), explorer, gtk_label_new(_("XPath Explorer")));
 
 	plugin_signal_connect(geany_plugin, NULL, "document-activate", FALSE,
 		(GCallback)&on_document_activate, NULL);

@@ -26,7 +26,7 @@ struct _XmlToolBarButton
 {
 	GtkToggleToolButton		*button;
 	xmlElementType		type;
-	XmlList				*model;
+	xmlTreeModel			*model;
 	
 };
 
@@ -38,14 +38,13 @@ struct _XmlNavigator
 	GtkWidget	*scrolled_window;
 	GtkWidget	*navigator_view_vbox;
 	GtkWidget	*navigator_view;
-	GtkWidget	*xpath_view;
-	GtkWidget	*xpath_entry;
-	GtkWidget	*xpath_results;
 
 	XmlToolBarButton	toolbar_buttons[6];
 	
-	XmlList	*model;
-	GtkTreeModel *filter;
+	GtkWidget	*xpath_entry;
+	
+	xmlTreeModel	*model;
+	GtkTreeModelFilter *filter;
 	
 	
 };
@@ -65,7 +64,7 @@ struct _XmlNavigatorClass
 GType		xml_navigator_get_type	(void);
 GtkWidget*	xml_navigator_new		(void);
 
-void		xml_navigator_set_model	(XmlNavigator *ttt, XmlList *xmllist);
+void		xml_navigator_set_model	(XmlNavigator *ttt, xmlTreeModel *xmltreemodel);
 
 G_END_DECLS
 

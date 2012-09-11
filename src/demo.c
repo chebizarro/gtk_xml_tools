@@ -25,9 +25,15 @@
 #include "xmltools.h"
 #include "xmltreemodel.h"
 #include "xmlnavigator.h"
+#include "xslttransformer.h"
+#include "xpathexplorer.h"
+#include "xmltreemodelfilter.h"
 
-static XmlList		*xmllist;
+static xmlTreeModel		*xmllist;
+static GtkWidget	*notebook;
 static GtkWidget	*navigator;
+static GtkWidget	*transformer;
+static GtkWidget	*explorer;
 static GtkWidget	*toolbar;
 static GtkWidget	*view,*tools_view_vbox;
 
@@ -60,14 +66,14 @@ static void add_file(GtkWidget *source, gchar *file_path) {
 
 	gtk_widget_destroy(view);
 	
-	/* Create and set up the XmlList */
-	xmllist = xml_list_new();
-	xml_list_add_file(xmllist,file_path);
+	/* Create and set up the xmlTreeModel */
+	xmllist = xml_tree_model_new();
+	xml_tree_model_add_file(xmllist,file_path);
 
-	xml_list_set_visible (xmllist, XML_DTD_NODE, TRUE);
-	xml_list_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
+	xml_tree_model_set_visible (xmllist, XML_DTD_NODE, TRUE);
+	xml_tree_model_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
 
-	xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_LIST(xmllist));	
+	xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_TREE_MODEL(xmllist));	
 
 }
 
@@ -112,7 +118,7 @@ on_navigator_activated(	XmlNavigator *widget,
 	
 	if (gtk_tree_selection_get_selected(selection, &model, &iter))
 	{
-		gtk_tree_model_get(model, &iter, XML_LIST_COL_LINE, &line, -1);
+		gtk_tree_model_get(model, &iter, XML_TREE_MODEL_COL_LINE, &line, -1);
 		if (line > 0)
 		{
 		}
@@ -126,7 +132,7 @@ create_window (void)
 	GtkWidget *window;
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_title (GTK_WINDOW (window), "xml-list");
+	gtk_window_set_title (GTK_WINDOW (window), "XML Tools");
 
 	/* Exit when the window is closed */
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
@@ -161,18 +167,41 @@ main (int argc, char *argv[])
 	g_signal_connect(navigator, "xml-row-activated",
 			G_CALLBACK(on_navigator_activated), NULL);
 
+	transformer = xslt_transformer_new();
+
+	explorer = xpath_explorer_new();
+	
 	/* Create the Main Toolbar*/
 	GtkWidget *toolbar;
 	tools_view_vbox = gtk_vbox_new(FALSE, 3);
 	toolbar = make_toolbar();
 	gtk_box_pack_start(GTK_BOX(tools_view_vbox), toolbar, FALSE, FALSE, 0);
 
-	gtk_container_add(GTK_CONTAINER(tools_view_vbox), navigator);	
+	notebook = gtk_notebook_new();
+	
+	gtk_notebook_append_page(GTK_NOTEBOOK(notebook),
+	                         GTK_WIDGET(navigator),
+	                         gtk_label_new("XML Navigator"));
+
+	gtk_notebook_append_page(GTK_NOTEBOOK(notebook),
+	                         GTK_WIDGET(transformer),
+	                         gtk_label_new("XSLT Transformer"));
+
+/*
+	 gtk_notebook_append_page(GTK_NOTEBOOK(notebook),
+	                         GTK_WIDGET(explorer),
+	                         gtk_label_new("XPATH Explorer"));
+*/
+	gtk_container_add(GTK_CONTAINER(tools_view_vbox), notebook);
+	
 	gtk_container_add(GTK_CONTAINER(window), tools_view_vbox);
 
 	gtk_widget_show_all(window);
 
-	//xml_list_add_file(xmllist,"/home/chris/Documents/Dev/xslt-editor/Samples/bible/BasicEnglish.xml");
+
+	xmlTreeModelFilter * filter = xml_tree_model_filter_new ();
+
+	//xml_tree_model_add_file(xmllist,"/home/chris/Documents/Dev/xslt-editor/Samples/bible/BasicEnglish.xml");
 	gtk_main();
 	 
 	return 0;

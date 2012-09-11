@@ -1,8 +1,8 @@
 #include "xmltools.h"
 
-static void add_stock_icon (GtkIconFactory *factory,
-				gchar *location,
-				gchar *stock_id);
+static void add_stock_icon (	GtkIconFactory *factory,
+								gchar *location,
+								gchar *stock_id);
 
 
 XmlNodeTypes XmlNodes[] =
