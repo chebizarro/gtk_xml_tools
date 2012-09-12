@@ -38,6 +38,7 @@ enum
 };
 
 #define XML_N_NODE_TYPES 22
+#define XML_TREE_MESSAGE "xml_tree_message"
 
 typedef struct _xmlTreeModel			 xmlTreeModel;
 typedef struct _xmlTreeModelClass	xmlTreeModelClass;

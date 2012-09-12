@@ -117,8 +117,33 @@ on_navigator_activated(	GtkWidget *widget,
 	}
 	return FALSE;
 }
+
+static void
+message_logger (const gchar *log_domain,
+                GLogLevelFlags log_level,
+                const gchar *message,
+                gpointer user_data)
+{
+	int error_colour;
+
+	msgwin_switch_tab(MSG_MESSAGE, TRUE);
+	
+	switch(log_level) {
+		case G_LOG_LEVEL_WARNING:
+			error_colour = COLOR_RED;
+			break;
+		case G_LOG_LEVEL_MESSAGE:
+			error_colour = COLOR_BLUE;
+			break;
+	}
+	
+	msgwin_msg_add(error_colour,0,NULL,message);
+
+}
+
 /* Plugin initialisation */
-void plugin_init(GeanyData *data)
+void
+plugin_init(GeanyData *data)
 {
 	LIBXML_TEST_VERSION
 
@@ -150,6 +175,9 @@ void plugin_init(GeanyData *data)
 	plugin_signal_connect(geany_plugin, NULL, "document-filetype-set", TRUE,
 		(GCallback)&on_document_activate, NULL);
 */
+
+	g_log_set_handler(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE, message_logger, NULL);
+
 	plugin_module_make_resident(geany_plugin);
 }
 

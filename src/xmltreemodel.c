@@ -304,7 +304,7 @@ xml_tree_model_get_type (void)
     };
  
     /* First register the new derived type with the GObject type system */
-    xml_tree_model_type = g_type_register_static (G_TYPE_OBJECT, "xmlTreeModel",
+    xml_tree_model_type = g_type_register_static (G_TYPE_OBJECT, XML_TREE_MESSAGE,
                                                &xml_tree_model_info, (GTypeFlags)0);
   
     /* Now register our GtkTreeModel interface with the type system */
@@ -959,7 +959,9 @@ xml_tree_model_add_file (	xmlTreeModel	*xml_tree_model,
 		xml_tree_model->xmldoc = xdoc;
 
 	} else {
-		xml_tree_model->xmldoc = throw_xml_error();
+		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to load %s\n", filename);
+		//xml_tree_model->xmldoc = throw_xml_error();
+		return;
 	}
 	
 	xml_tree_model->filename = filename;
@@ -1009,6 +1011,8 @@ xml_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
 
 			size = (xpath_results->nodesetval) ? xpath_results->nodesetval->nodeNr : 0;
 
+			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_MESSAGE, "XPath returned %i nodes\n", size);
+
 			for(i = 0; i < size; ++i) {
 				xmlNodePtr record;
 				GValue value = G_VALUE_INIT;
@@ -1031,6 +1035,8 @@ xml_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
 				}
 			}
 			xmlXPathFreeObject(xpath_results);
+		} else {
+			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "XPath returned no results\n");
 		}
 	}
 	return list_store;
@@ -1044,21 +1050,21 @@ xml_tree_model_validate(xmlTreeModel *tree_model) {
     /* create a parser context */
     ctxt = xmlNewParserCtxt();
     if (ctxt == NULL) {
-        fprintf(stderr, "Failed to allocate parser context\n");
+   		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to allocate parser context\n");
 	return;
     }
     /* parse the file, activating the DTD validation option */
     doc = xmlCtxtReadFile(ctxt, tree_model->filename, NULL, XML_PARSE_DTDVALID);
     /* check if parsing suceeded */
     if (doc == NULL) {
-        fprintf(stderr, "Failed to parse %s\n", tree_model->filename);
+		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to parse %s\n", tree_model->filename);
     } else {
 	/* check if validation suceeded */
-        if (ctxt->valid == 0)
-	    fprintf(stderr, "Failed to validate %s\n", tree_model->filename);
-
-	    fprintf(stderr, "valid!", tree_model->filename);
-
+        if (ctxt->valid == 0) {
+			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to validate %s\n", tree_model->filename);
+		} else {
+			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_MESSAGE, "%s is valid\n", tree_model->filename);
+		}
 	/* free up the resulting document */
 	xmlFreeDoc(doc);
     }
