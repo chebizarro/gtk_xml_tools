@@ -46,19 +46,15 @@ GeanyPlugin		*geany_plugin;
 GeanyData		*geany_data;
 GeanyFunctions	*geany_functions;
 
-static gint		page_number = 0;
+static gint			page_number = 0;
 static xmlTreeModel	*xmllist;
-static GtkWidget	*navigator, *transformer, *explorer;
-
+static GtkWidget		*navigator;
 
 static gboolean change_focus_to_editor(GeanyDocument *doc);
-
 
 void plugin_help(void) {
  //TODO
 }
-
-
 
 static gboolean change_focus_to_editor(GeanyDocument *doc)
 {
@@ -132,22 +128,12 @@ void plugin_init(GeanyData *data)
 
 	navigator = xml_navigator_new();
 
-	transformer = xslt_transformer_new();
-	
-	explorer = xpath_explorer_new();
-
 	g_signal_connect(navigator, "xml-row-activated",
 			G_CALLBACK(on_navigator_activated), NULL);
 				
 	gtk_widget_show_all(navigator);
-	gtk_widget_show_all(transformer);
-	//gtk_widget_show_all(explorer);
 
-	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), navigator, gtk_label_new(_("XML Navigator")));
-
-	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), transformer, gtk_label_new(_("XSLT Transformer")));
-
-	//page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), explorer, gtk_label_new(_("XPath Explorer")));
+	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), navigator, gtk_label_new(_("XML Tools")));
 
 	plugin_signal_connect(geany_plugin, NULL, "document-activate", FALSE,
 		(GCallback)&on_document_activate, NULL);

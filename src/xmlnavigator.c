@@ -169,11 +169,11 @@ xml_navigator_class_init (XmlNavigatorClass *klass)
 static void
 xml_navigator_init (XmlNavigator *ttt)
 {
-	ttt->xpath_entry = make_xpath_entry(ttt);
-	gtk_box_pack_start(GTK_BOX(ttt), ttt->xpath_entry, FALSE, FALSE, 0);
-
 	ttt->toolbar = make_toolbar(ttt);
 	gtk_box_pack_start(GTK_BOX(ttt), ttt->toolbar, FALSE, FALSE, 0);
+
+	ttt->xpath_entry = make_xpath_entry(ttt);
+	gtk_box_pack_start(GTK_BOX(ttt), ttt->xpath_entry, FALSE, FALSE, 0);
 
     ttt->scrolled_window = make_scrolled_window();
     gtk_box_pack_start (GTK_BOX(ttt), ttt->scrolled_window, TRUE, TRUE, 0);
@@ -263,13 +263,17 @@ xml_toggle_visible(XmlNavigator *ttt,
 
 static void
 make_toolbar_button(XmlNavigator	 *ttt,
-					xmlElementType	 type,
+					xmlElementType type,
     	            XmlToolBarButton * button)
 {
 	button->button = gtk_toggle_tool_button_new_from_stock(XmlNodes[type].stock_id);
 	gtk_widget_set_sensitive (GTK_WIDGET(button->button), FALSE);
 	button->type = type;
 	g_signal_connect(ttt, "xml-model-changed", G_CALLBACK(xml_toggle_visible), button);
+}
+
+static void validate_clicked(GtkToolButton * button, XmlNavigator *ttt){
+	xml_tree_model_validate(ttt->model);
 }
 
 static GtkWidget *
@@ -288,6 +292,12 @@ make_toolbar(XmlNavigator * ttt)
 	toolbar = gtk_toolbar_new();
 	gtk_toolbar_set_icon_size(GTK_TOOLBAR(toolbar), GTK_ICON_SIZE_MENU);
 	gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_ICONS);
+
+	GtkWidget *button = gtk_tool_button_new_from_stock("gtk-apply");
+	gtk_container_add(GTK_CONTAINER(toolbar), GTK_WIDGET(button));
+	g_signal_connect(button, "clicked", G_CALLBACK(validate_clicked), ttt);
+
+	gtk_container_add(GTK_CONTAINER(toolbar), GTK_WIDGET(gtk_separator_tool_item_new()));
 
 	for(int i=0;i<6;++i)
 	{
@@ -400,6 +410,15 @@ make_navigator_view (XmlNavigator * ttt)
 	gtk_tree_view_column_set_title (col, "Value");
 	gtk_tree_view_column_set_resizable(col, TRUE);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(view),col);
+
+	renderer = gtk_cell_renderer_text_new();
+	col = gtk_tree_view_column_new();
+	gtk_tree_view_column_pack_start (col, renderer, TRUE);
+	gtk_tree_view_column_add_attribute (col, renderer, "text", XML_TREE_MODEL_COL_XPATH);
+	gtk_tree_view_column_set_title (col, "Xpath");
+	gtk_tree_view_column_set_resizable(col, TRUE);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(view),col);
+
 
 	gtk_tree_view_set_enable_tree_lines(GTK_TREE_VIEW(view), TRUE);
 

@@ -1035,3 +1035,33 @@ xml_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
 	}
 	return list_store;
 }
+
+gboolean
+xml_tree_model_validate(xmlTreeModel *tree_model) {
+    xmlParserCtxtPtr ctxt; /* the parser context */
+    xmlDocPtr doc; /* the resulting document tree */
+
+    /* create a parser context */
+    ctxt = xmlNewParserCtxt();
+    if (ctxt == NULL) {
+        fprintf(stderr, "Failed to allocate parser context\n");
+	return;
+    }
+    /* parse the file, activating the DTD validation option */
+    doc = xmlCtxtReadFile(ctxt, tree_model->filename, NULL, XML_PARSE_DTDVALID);
+    /* check if parsing suceeded */
+    if (doc == NULL) {
+        fprintf(stderr, "Failed to parse %s\n", tree_model->filename);
+    } else {
+	/* check if validation suceeded */
+        if (ctxt->valid == 0)
+	    fprintf(stderr, "Failed to validate %s\n", tree_model->filename);
+
+	    fprintf(stderr, "valid!", tree_model->filename);
+
+	/* free up the resulting document */
+	xmlFreeDoc(doc);
+    }
+    /* free up the parser context */
+    xmlFreeParserCtxt(ctxt);
+}

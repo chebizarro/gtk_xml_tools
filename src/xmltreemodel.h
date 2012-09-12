@@ -92,5 +92,6 @@ gboolean	xml_tree_model_get_visible (xmlTreeModel *xmllist, xmlElementType nodet
 
 GtkListStore * xml_get_xpath_results(xmlTreeModel *xmllist, gchar *xpath);
 
+gboolean	xml_tree_model_validate(xmlTreeModel *tree_model);
                       
 #endif /* _xml_tree_model_h_included_ */
