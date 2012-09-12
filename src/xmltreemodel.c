@@ -304,7 +304,7 @@ xml_tree_model_get_type (void)
     };
  
     /* First register the new derived type with the GObject type system */
-    xml_tree_model_type = g_type_register_static (G_TYPE_OBJECT, XML_TREE_MESSAGE,
+    xml_tree_model_type = g_type_register_static (G_TYPE_OBJECT, "xmlTreeModel",
                                                &xml_tree_model_info, (GTypeFlags)0);
   
     /* Now register our GtkTreeModel interface with the type system */
@@ -376,7 +376,7 @@ xml_tree_model_init (xmlTreeModel *xml_tree_model)
 	LIBXML_TEST_VERSION /* Arrrgh - where should this go??? */
 	
 	xml_tree_model->n_columns       = XML_TREE_MODEL_N_COLUMNS;
-	xml_tree_model->column_types[0] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_TYPE	*/
+	xml_tree_model->column_types[0] = G_TYPE_INT;	/* XML_TREE_MODEL_COL_TYPE	*/
 	xml_tree_model->column_types[1] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_NS	*/
 	xml_tree_model->column_types[2] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_NAME	*/
 	xml_tree_model->column_types[3] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_CONTENT	*/
@@ -582,7 +582,7 @@ xml_tree_model_get_value (GtkTreeModel *tree_model,
 	switch(column)
 	{
 		case XML_TREE_MODEL_COL_TYPE:
-			g_value_set_string(value, XmlNodes[record->type].stock_id);
+			g_value_set_int(value, record->type);
 			break;
  
 		case XML_TREE_MODEL_COL_NS:

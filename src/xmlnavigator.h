@@ -8,6 +8,7 @@
 
 #include <gtk/gtk.h>
 #include "xmltreemodel.h"
+#include "xmlcellrenderer.h"
 
 G_BEGIN_DECLS
 
@@ -24,10 +25,18 @@ typedef struct _XmlToolBarButton	XmlToolBarButton;
 
 struct _XmlToolBarButton
 {
-	GtkToggleToolButton		*button;
+	GtkToggleToolButton	*button;
 	xmlElementType		type;
-	xmlTreeModel			*model;
+	xmlTreeModel		*model;
 	
+};
+
+typedef struct _xmlTreeModelFilter		xmlTreeModelFilter;
+
+struct _xmlTreeModelFilter
+{
+	gboolean	row_visible[XML_N_NODE_TYPES];
+	gboolean	ns;
 };
 
 struct _XmlNavigator
@@ -40,12 +49,16 @@ struct _XmlNavigator
 	GtkWidget	*navigator_view;
 
 	XmlToolBarButton	toolbar_buttons[6];
+
+	xmlTreeModelFilter	filteropts;
 	
 	GtkWidget	*xpath_entry;
 	
 	xmlTreeModel	*model;
 	GtkTreeModelFilter *filter;
-	
+
+	gboolean	row_visible[XML_N_NODE_TYPES];
+	gboolean	show_ns;
 	
 };
 

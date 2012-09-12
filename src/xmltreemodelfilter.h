@@ -27,20 +27,25 @@ typedef struct _xmlTreeModelFilterClass	xmlTreeModelFilterClass;
 
 struct _xmlTreeModelFilter
 {
-	GtkTreeModelFilter filter;
+	GObject		parent;
 
-	xmlTreeModel * model;
+	xmlTreeModel		*model;
+	GtkTreePath 		*root;
+	
+	gboolean			row_visible[XML_N_NODE_TYPES];
+
 };
 
 struct _xmlTreeModelFilterClass
 {
-	GtkTableClass parent_class;
-
-	void (* xml_tree_model_filter) (xmlTreeModelFilter *ttt);
+	GObjectClass parent_class;
 };
 
-GType			xml_tree_model_filter_get_type				(void);
-GtkWidget*		xml_tree_model_filter_new					(void);
+GType			xml_tree_model_filter_get_type		(void);
+GtkWidget*		xml_tree_model_filter_new			(GtkTreeModel *child_model, GtkTreePath *root);
+
+void			xml_tree_model_filter_set_visible	(xmlTreeModelFilter *xmltreemodel, xmlElementType nodetype, gboolean visible);
+gboolean		xml_tree_model_filter_get_visible 	(xmlTreeModelFilter *xmltreemodel, xmlElementType nodetype);
 
 
 G_END_DECLS

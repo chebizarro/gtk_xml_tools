@@ -48,7 +48,7 @@ GeanyFunctions	*geany_functions;
 
 static gint			page_number = 0;
 static xmlTreeModel	*xmllist;
-static GtkWidget		*navigator;
+static XmlNavigator	*navigator;
 
 static gboolean change_focus_to_editor(GeanyDocument *doc);
 
@@ -126,8 +126,9 @@ message_logger (const gchar *log_domain,
 {
 	int error_colour;
 
+	msgwin_clear_tab(MSG_MESSAGE);
 	msgwin_switch_tab(MSG_MESSAGE, TRUE);
-	
+		
 	switch(log_level) {
 		case G_LOG_LEVEL_WARNING:
 			error_colour = COLOR_RED;
@@ -156,9 +157,12 @@ plugin_init(GeanyData *data)
 	g_signal_connect(navigator, "xml-row-activated",
 			G_CALLBACK(on_navigator_activated), NULL);
 				
+	ui_widget_modify_font_from_string(GTK_WIDGET(navigator->navigator_view), geany->interface_prefs->tagbar_font);
+
 	gtk_widget_show_all(navigator);
 
-	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), navigator, gtk_label_new(_("XML Tools")));
+
+	page_number = gtk_notebook_append_page(GTK_NOTEBOOK(geany->main_widgets->sidebar_notebook), GTK_WIDGET(navigator), gtk_label_new(_("XML Tools")));
 
 	plugin_signal_connect(geany_plugin, NULL, "document-activate", FALSE,
 		(GCallback)&on_document_activate, NULL);

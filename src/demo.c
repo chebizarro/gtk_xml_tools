@@ -27,7 +27,6 @@
 #include "xmlnavigator.h"
 #include "xslttransformer.h"
 #include "xpathexplorer.h"
-#include "xmltreemodelfilter.h"
 
 static xmlTreeModel		*xmllist;
 static GtkWidget	*notebook;
@@ -199,7 +198,7 @@ main (int argc, char *argv[])
 	gtk_widget_show_all(window);
 
 
-	xmlTreeModelFilter * filter = xml_tree_model_filter_new ();
+	//xmlTreeModelFilter * filter = xml_tree_model_filter_new ();
 
 	//xml_tree_model_add_file(xmllist,"/home/chris/Documents/Dev/xslt-editor/Samples/bible/BasicEnglish.xml");
 	gtk_main();
