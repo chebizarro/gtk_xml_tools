@@ -7,6 +7,7 @@
 
 /* XML/XSLT Libraries */
 #include <libxml/parser.h>
+#include <libxml/HTMLparser.h>
 #include <libxml/tree.h>
 #include <libxslt/xslt.h>
 #include <libxslt/xsltInternals.h>
@@ -32,7 +33,6 @@ enum
 	XML_TREE_MODEL_COL_NAME,
 	XML_TREE_MODEL_COL_CONTENT,
 	XML_TREE_MODEL_COL_LINE,
-	XML_TREE_MODEL_COL_VISIBLE,
 	XML_TREE_MODEL_COL_XPATH,
 	XML_TREE_MODEL_N_COLUMNS,
 };
@@ -51,15 +51,17 @@ typedef struct _xmlTreeModelClass	xmlTreeModelClass;
  
 struct _xmlTreeModel
 {
-	GObject		parent;			/* this MUST be the first member */
+	GObject				parent;			/* this MUST be the first member */
  
-	xmlDocPtr	xmldoc;
-	
-	gboolean	row_visible[XML_N_NODE_TYPES];
+	xmlDocPtr			xmldoc;
 
-	gchar		*xpath;
+	xsltStylesheetPtr	xsldoc;
+
+	xsltStylesheetPtr	stylesheet;
 	
-	gchar		*filename;
+	gchar				*xpath;
+	
+	gchar				*filename;
 	
 	/* These two fields are not absolutely necessary, but they		*/
 	/*	 speed things up a bit in our get_value implementation		*/
@@ -81,18 +83,15 @@ struct _xmlTreeModelClass
  
 GType	xml_tree_model_get_type (void);
 
-//void	xml_type_register_type(GTypeModule *type_module);
- 
+
 xmlTreeModel	*xml_tree_model_new (void);
 
 void	xml_tree_model_add_file (xmlTreeModel   *xml_tree_model, gchar  *filename);
 
-void	xml_tree_model_set_visible (xmlTreeModel *xmllist, xmlElementType nodetype, gboolean visible);
-
-gboolean	xml_tree_model_get_visible (xmlTreeModel *xmllist, xmlElementType nodetype);
-
 GtkListStore * xml_get_xpath_results(xmlTreeModel *xmllist, gchar *xpath);
 
 gboolean	xml_tree_model_validate(xmlTreeModel *tree_model);
-                      
+
+GtkListStore * xml_tree_model_get_stylesheet_params(xmlTreeModel *xmltreemodel);
+
 #endif /* _xml_tree_model_h_included_ */

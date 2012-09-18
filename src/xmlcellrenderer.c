@@ -455,7 +455,8 @@ xml_cell_renderer_set_property (GObject      *object,
 GtkCellRenderer *
 xml_cell_renderer_new (void)
 {
-  return g_object_new (XML_TYPE_CELL_RENDERER, NULL);
+	xml_icon_factory_new();
+	return g_object_new (XML_TYPE_CELL_RENDERER, NULL);
 }
 
 static void

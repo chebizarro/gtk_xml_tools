@@ -1,6 +1,7 @@
 #include "xmltools.h"
 #include "xmltreemodel.h"
- 
+
+
 /* boring declarations of local functions */
  
 static void         xml_tree_model_init            (xmlTreeModel      *pkg_tree);
@@ -190,6 +191,7 @@ static xmlNodePtr xmlFirstElementChildN(xmlNodePtr node) {
 		case XML_ELEMENT_NODE:
 		case XML_DOCUMENT_NODE:
 		case XML_HTML_DOCUMENT_NODE:
+		case XML_PI_NODE:
 				record = (xmlNodePtr)node->properties;
 		case XML_DTD_NODE:
 			if(record == NULL)
@@ -217,6 +219,8 @@ static unsigned long xmlChildElementCountN(xmlNodePtr node) {
 	{
 		case XML_ELEMENT_NODE:
 		case XML_DOCUMENT_NODE:
+		case XML_PI_NODE:
+
 			elements = (xmlNodePtr)node->properties;
 
 			while(elements != NULL) {
@@ -381,20 +385,15 @@ xml_tree_model_init (xmlTreeModel *xml_tree_model)
 	xml_tree_model->column_types[2] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_NAME	*/
 	xml_tree_model->column_types[3] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_CONTENT	*/
 	xml_tree_model->column_types[4] = G_TYPE_INT;		/* XML_TREE_MODEL_COL_LINE	*/
-	xml_tree_model->column_types[5] = G_TYPE_BOOLEAN;	/* XML_TREE_MODEL_COL_VISIBLE	*/
-	xml_tree_model->column_types[6] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_PATH	*/
+	xml_tree_model->column_types[5] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_PATH	*/
 
 
-	g_assert (XML_TREE_MODEL_N_COLUMNS == 7);
+	g_assert (XML_TREE_MODEL_N_COLUMNS == 6);
  
 	xml_tree_model->stamp = g_random_int();  /* Random int to check whether an iter belongs to our model */
 	xml_tree_model->xmldoc = NULL;
 	xml_tree_model->xpath = NULL;
-
-	xml_tree_model->row_visible[XML_ELEMENT_NODE] = TRUE;
-	xml_tree_model->row_visible[XML_DOCUMENT_NODE] = TRUE;
-	xml_tree_model->row_visible[XML_ATTRIBUTE_NODE] = TRUE;
-	xml_tree_model->row_visible[XML_TEXT_NODE] = FALSE;
+	
 }
  
  
@@ -410,6 +409,11 @@ xml_tree_model_finalize (GObject *object)
 {
 	xmlTreeModel *xml_tree_model = XML_TREE_MODEL(object);
 
+	if(xml_tree_model->xsldoc) {
+		xsltFreeStylesheet(xml_tree_model->xsldoc);
+		xml_tree_model->xmldoc = NULL;
+	}
+	
 	if(xml_tree_model->xmldoc)
 		xmlFreeDoc(xml_tree_model->xmldoc);
 	
@@ -591,11 +595,20 @@ xml_tree_model_get_value (GtkTreeModel *tree_model,
  
  		case XML_TREE_MODEL_COL_NAME:
 		{
-			if(record->type == XML_DOCUMENT_NODE) {
-				xmlDocPtr dorec = record;
-				g_value_set_string(value,(const gchar *)dorec->version);
-			} else {
-				g_value_set_string(value,(gchar *) record->name);
+			switch(record->type)
+			{
+				case XML_CDATA_SECTION_NODE:
+					g_value_set_string(value,"CDATA");
+					break;
+				case XML_DOCUMENT_NODE:
+				{
+					xmlDocPtr dorec = record;
+					g_value_set_string(value,(const gchar *)dorec->version);
+					break;
+				}
+				default:
+					g_value_set_string(value,(gchar *) record->name);
+					break;
 			}
 			break;
 		}
@@ -606,10 +619,6 @@ xml_tree_model_get_value (GtkTreeModel *tree_model,
 			
 		case XML_TREE_MODEL_COL_LINE:
 			g_value_set_int(value, (gint) xmlGetLineNo(record));
-			break;
-
-		case XML_TREE_MODEL_COL_VISIBLE:
-			g_value_set_boolean(value, XML_TREE_MODEL(tree_model)->row_visible[record->type]);
 			break;
 
 		case XML_TREE_MODEL_COL_XPATH:
@@ -651,7 +660,7 @@ get_value_content(xmlNodePtr record, GValue * value) {
 		case XML_ATTRIBUTE_NODE:
 		case XML_TEXT_NODE:
 		case XML_COMMENT_NODE:
-		case XML_PI_NODE: 
+		case XML_CDATA_SECTION_NODE:
 		{
 			g_value_set_string(value,g_strstrip((gchar *)xmlNodeGetContent(record)));			
 			break;
@@ -673,6 +682,22 @@ get_value_content(xmlNodePtr record, GValue * value) {
 				if(record->type == XML_TEXT_NODE)
 					g_value_set_string(value,g_strstrip((gchar *)xmlNodeGetContent(record)));
 			}
+			break;
+		}
+		case XML_PI_NODE:
+		{
+/*			int n;
+			gchar** tokens;
+			tokens = g_strsplit_set(g_strstrip((gchar *)xmlNodeGetContent(record)),"=\"\' ",-1);
+			gchar * token;
+			n = g_strv_length(tokens);
+			for(int i = 0; i<n; ++i)
+			{
+				token = tokens[i];
+			}
+			g_strfreev(tokens);*/
+
+			g_value_set_string(value,g_strstrip((gchar *)xmlNodeGetContent(record)));
 			break;
 		}
 		default:
@@ -936,11 +961,8 @@ void
 xml_tree_model_add_file (	xmlTreeModel	*xml_tree_model,
 							gchar			*filename)
 {
-	xmlDocPtr	xdoc = NULL;
 
 	g_return_if_fail (XML_IS_TREE_MODEL(xml_tree_model));
-
-	xdoc = xmlParseFile(filename);
 
 	GtkTreeIter   iter;
 	GtkTreePath  *path;
@@ -952,15 +974,33 @@ xml_tree_model_add_file (	xmlTreeModel	*xml_tree_model,
 	gtk_tree_model_row_has_child_toggled(GTK_TREE_MODEL(xml_tree_model),path, &iter);
 	gtk_tree_path_free(path);
 
-	if(xdoc != NULL) {		
+	
+	xsltStylesheetPtr 	xsldoc;
+	xmlDocPtr			xmldoc;
+	
+	// First try as stylesheet
+	xsldoc = xsltParseStylesheetFile((xmlChar *)filename);
+
+	if(xsldoc != NULL) {
+		xmldoc = xsldoc->doc;
+	} else {
+		xmldoc = xmlParseFile(filename);
+	}
+
+	if(xmldoc != NULL) {		
+		if(xml_tree_model->xsldoc) {
+			xsltFreeStylesheet(xml_tree_model->xsldoc);
+			xml_tree_model->xmldoc = NULL;
+		}
+		
 		if(xml_tree_model->xmldoc)
 			xmlFreeDoc(xml_tree_model->xmldoc);
 
-		xml_tree_model->xmldoc = xdoc;
+		xml_tree_model->xmldoc = xmldoc;
+		xml_tree_model->xsldoc = xsldoc;
 
 	} else {
 		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to load %s\n", filename);
-		//xml_tree_model->xmldoc = throw_xml_error();
 		return;
 	}
 	
@@ -976,20 +1016,6 @@ xml_tree_model_add_file (	xmlTreeModel	*xml_tree_model,
 	gtk_tree_path_free(path);
 }
  
-void
-xml_tree_model_set_visible (xmlTreeModel *xmltreemodel, xmlElementType nodetype, gboolean visible)
-{
-	g_return_if_fail (XML_IS_TREE_MODEL(xmltreemodel));
-	xmltreemodel->row_visible[nodetype] = visible;
-}
-
-gboolean
-xml_tree_model_get_visible (xmlTreeModel *xmltreemodel, xmlElementType nodetype)
-{
-	g_return_val_if_fail(XML_IS_TREE_MODEL(xmltreemodel), FALSE);
-	return xmltreemodel->row_visible[nodetype];
-}
-
 
 GtkListStore *
 xml_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
@@ -1046,28 +1072,59 @@ gboolean
 xml_tree_model_validate(xmlTreeModel *tree_model) {
     xmlParserCtxtPtr ctxt; /* the parser context */
     xmlDocPtr doc; /* the resulting document tree */
+	gboolean valid;
 
     /* create a parser context */
     ctxt = xmlNewParserCtxt();
     if (ctxt == NULL) {
    		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to allocate parser context\n");
-	return;
+	return FALSE;
     }
     /* parse the file, activating the DTD validation option */
     doc = xmlCtxtReadFile(ctxt, tree_model->filename, NULL, XML_PARSE_DTDVALID);
     /* check if parsing suceeded */
     if (doc == NULL) {
 		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to parse %s\n", tree_model->filename);
+		valid = FALSE;
     } else {
 	/* check if validation suceeded */
         if (ctxt->valid == 0) {
 			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to validate %s\n", tree_model->filename);
+			valid = FALSE;
 		} else {
 			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_MESSAGE, "%s is valid\n", tree_model->filename);
+			valid = TRUE;
 		}
 	/* free up the resulting document */
 	xmlFreeDoc(doc);
     }
     /* free up the parser context */
     xmlFreeParserCtxt(ctxt);
+    
+    return valid;
+}
+
+GtkListStore *
+xml_tree_model_get_stylesheet_params(xmlTreeModel *xmltreemodel) {
+
+	GtkListStore *list_store;
+	GtkTreeIter iter;
+	xsltStackElemPtr stack;
+		
+	list_store = gtk_list_store_new (2,G_TYPE_STRING, G_TYPE_STRING);
+
+	if(xmltreemodel->xsldoc != NULL) {
+		stack = xmltreemodel->xsldoc->variables; 
+		while(stack != NULL) {
+			if(stack->comp->type == XSLT_FUNC_PARAM) {
+				gtk_list_store_append (list_store, &iter);
+				gtk_list_store_set(GTK_LIST_STORE(list_store), &iter,
+									0, stack->name,
+									1, "",
+									-1);
+			}
+			stack = stack->next;
+		}
+	}
+	return list_store;
 }

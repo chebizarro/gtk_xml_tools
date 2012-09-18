@@ -25,14 +25,10 @@
 #include "xmltools.h"
 #include "xmltreemodel.h"
 #include "xmlnavigator.h"
-#include "xslttransformer.h"
-#include "xpathexplorer.h"
+
 
 static xmlTreeModel		*xmllist;
-static GtkWidget	*notebook;
 static GtkWidget	*navigator;
-static GtkWidget	*transformer;
-static GtkWidget	*explorer;
 static GtkWidget	*toolbar;
 static GtkWidget	*view,*tools_view_vbox;
 
@@ -68,9 +64,6 @@ static void add_file(GtkWidget *source, gchar *file_path) {
 	/* Create and set up the xmlTreeModel */
 	xmllist = xml_tree_model_new();
 	xml_tree_model_add_file(xmllist,file_path);
-
-	xml_tree_model_set_visible (xmllist, XML_DTD_NODE, TRUE);
-	xml_tree_model_set_visible (xmllist, XML_ATTRIBUTE_NODE, TRUE);
 
 	xml_navigator_set_model(XML_NAVIGATOR(navigator), XML_TREE_MODEL(xmllist));	
 
@@ -157,18 +150,13 @@ main (int argc, char *argv[])
 
 	gtk_window_set_default_size (GTK_WINDOW(window), 400, 400);
 
-	gtk_window_set_keep_above(window, TRUE);
-
-	xml_icon_factory_new();
+	gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
 
 	navigator = xml_navigator_new();
 
 	g_signal_connect(navigator, "xml-row-activated",
 			G_CALLBACK(on_navigator_activated), NULL);
 
-	transformer = xslt_transformer_new();
-
-	explorer = xpath_explorer_new();
 	
 	/* Create the Main Toolbar*/
 	GtkWidget *toolbar;
@@ -176,31 +164,13 @@ main (int argc, char *argv[])
 	toolbar = make_toolbar();
 	gtk_box_pack_start(GTK_BOX(tools_view_vbox), toolbar, FALSE, FALSE, 0);
 
-	notebook = gtk_notebook_new();
 	
-	gtk_notebook_append_page(GTK_NOTEBOOK(notebook),
-	                         GTK_WIDGET(navigator),
-	                         gtk_label_new("XML Navigator"));
-
-	gtk_notebook_append_page(GTK_NOTEBOOK(notebook),
-	                         GTK_WIDGET(transformer),
-	                         gtk_label_new("XSLT Transformer"));
-
-/*
-	 gtk_notebook_append_page(GTK_NOTEBOOK(notebook),
-	                         GTK_WIDGET(explorer),
-	                         gtk_label_new("XPATH Explorer"));
-*/
-	gtk_container_add(GTK_CONTAINER(tools_view_vbox), notebook);
+	gtk_container_add(GTK_CONTAINER(tools_view_vbox), navigator);
 	
 	gtk_container_add(GTK_CONTAINER(window), tools_view_vbox);
 
 	gtk_widget_show_all(window);
 
-
-	//xmlTreeModelFilter * filter = xml_tree_model_filter_new ();
-
-	//xml_tree_model_add_file(xmllist,"/home/chris/Documents/Dev/xslt-editor/Samples/bible/BasicEnglish.xml");
 	gtk_main();
 	 
 	return 0;

@@ -18,47 +18,78 @@ G_BEGIN_DECLS
 #define IS_XML_NAVIGATOR(obj)			(G_TYPE_CHECK_INSTANCE_TYPE ((obj), XML_NAVIGATOR_TYPE))
 #define IS_XML_NAVIGATOR_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE ((klass), XML_NAVIGATOR_TYPE))
 
-typedef struct _XmlNavigator		XmlNavigator;
-typedef struct _XmlNavigatorClass	XmlNavigatorClass;
-
-typedef struct _XmlToolBarButton	XmlToolBarButton;
-
-struct _XmlToolBarButton
-{
-	GtkToggleToolButton	*button;
-	xmlElementType		type;
-	xmlTreeModel		*model;
-	
-};
+typedef struct _XmlNavigator				XmlNavigator;
+typedef struct _XmlNavigatorClass		XmlNavigatorClass;
 
 typedef struct _xmlTreeModelFilter		xmlTreeModelFilter;
+typedef struct _xmlToolBarButton		xmlToolBarButton;
+typedef struct _xmlToolBar				xmlToolBar;
+typedef struct _xmlXpathExplorer		xmlXpathExplorer;
+typedef struct _xmlValidator				xmlValidator;
+typedef struct _xsltTransformer			xsltTransformer;
 
 struct _xmlTreeModelFilter
 {
-	gboolean	row_visible[XML_N_NODE_TYPES];
-	gboolean	ns;
+	GtkTreeModelFilter	* filter;
+	gboolean			row_visible[XML_N_NODE_TYPES];
+	gboolean			show_ns;
 };
+
+struct _xmlToolBarButton
+{
+	GtkToggleToolButton	* button;
+	xmlElementType	type;
+	xmlTreeModel		* model;
+};
+
+struct _xmlToolBar
+{
+	GtkToolbar			* toolbar;
+	xmlToolBarButton	toolbar_buttons[6];
+};
+
+struct _xmlXpathExplorer
+{
+	GtkVBox				* widget;
+	
+	GtkExpander			* expander;
+	GtkEntry			* entry;
+	GtkTreeView			* results;
+};
+
+struct _xmlValidator
+{
+	GtkVBox				* widget;
+	
+	GtkExpander			* expander;
+	GtkEntry			* entry;
+};
+
+struct _xsltTransformer
+{
+	GtkVBox		*widget;
+	
+	GtkExpander	*expander;
+	GtkEntry	*entry;
+	GtkTreeView	*parameters;
+};
+
 
 struct _XmlNavigator
 {
-	GtkVBox		widget;
-	
-	GtkWidget	*toolbar;
-	GtkWidget	*scrolled_window;
-	GtkWidget	*navigator_view_vbox;
-	GtkWidget	*navigator_view;
+	GtkVBox					widget;
 
-	XmlToolBarButton	toolbar_buttons[6];
+	xmlTreeModel			* model;
+	xmlTreeModel			* stylesheet;
 
-	xmlTreeModelFilter	filteropts;
-	
-	GtkWidget	*xpath_entry;
-	
-	xmlTreeModel	*model;
-	GtkTreeModelFilter *filter;
+	xmlTreeModelFilter	filter;
 
-	gboolean	row_visible[XML_N_NODE_TYPES];
-	gboolean	show_ns;
+	xmlToolBar				toolbar;
+	xmlXpathExplorer		xpathExplorer;
+	xmlValidator			validator;
+	xsltTransformer		transformer;
+	
+	GtkTreeView				* navigator;
 	
 };
 
@@ -71,7 +102,8 @@ struct _XmlNavigatorClass
 	void (* xml_row_expanded)	(XmlNavigator *ttt);
 	void (* xml_row_collapsed)	(XmlNavigator *ttt);
 	void (* xml_model_changed)	(XmlNavigator *ttt);
-
+	void (* xpath_model_changed)	(XmlNavigator *ttt);
+	void (* xsl_menu_activated)	(XmlNavigator *ttt);
 };
 
 GType		xml_navigator_get_type	(void);
