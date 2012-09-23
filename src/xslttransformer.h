@@ -8,6 +8,7 @@
 
 #include <gtk/gtk.h>
 #include "xmltreemodel.h"
+#include "xmltools.h"
 
 #include <libxslt/xslt.h>
 #include <libxslt/xsltInternals.h>
@@ -30,8 +31,12 @@ struct _xsltTransformer
 {
 	GtkVBox		widget;
 	
-	GtkWidget	*file_entry;
-	GtkWidget	*param_list_box;
+	GtkEntry	*entry;
+	GtkTreeView	*parameters;
+
+	xmlTreeModel *model;
+	xmlTreeModel *stylesheet;
+	xmlTreeModel *result;
 
 };
 
@@ -39,11 +44,17 @@ struct _xsltTransformerClass
 {
 	GtkVBoxClass parent_class;
 
-	void (* xslt_transformer) (xsltTransformer *ttt);
+	void (* xslt_model_changed) (xsltTransformer *ttt);
+	void (* xsl_menu_activated) (xsltTransformer *ttt);
+	void (* xslt_model_transformed) (xsltTransformer *ttt);
 };
 
 GType			xslt_transformer_get_type				(void);
 GtkWidget*		xslt_transformer_new					(void);
+
+void		 	xslt_transformer_set_model				(xsltTransformer *ttt,
+														xmlTreeModel * xmltreemodel);
+
 
 G_END_DECLS
 

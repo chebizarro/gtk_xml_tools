@@ -8,11 +8,8 @@
 
 #include <gtk/gtk.h>
 #include "xmltreemodel.h"
+#include "xmlcellrenderer.h"
 
-#include <libxslt/xslt.h>
-#include <libxslt/xsltInternals.h>
-#include <libxslt/transform.h>
-#include <libxslt/xsltutils.h>
 
 G_BEGIN_DECLS
 
@@ -27,24 +24,29 @@ typedef struct _XpathExplorerClass	XpathExplorerClass;
 
 struct _XpathExplorer
 {
-	GtkVBox		widget;
+	GtkVBox		 widget;
 
-	GtkWidget	*xpath_view;
-	GtkWidget	*xpath_entry;
-	GtkWidget	*xpath_results;
+	GtkEntry	 *entry;
+	GtkTreeView	 *results;
+
+	xmlTreeModel *model;
 
 };
 
 struct _XpathExplorerClass
 {
-	GtkTableClass parent_class;
+	GtkVBoxClass parent_class;
 
-	void (* xpath_explorer) (XpathExplorer *ttt);
+	void (* xpath_row_activated)	(XpathExplorer *ttt);
+	void (* xpath_row_expanded)		(XpathExplorer *ttt);
+	void (* xpath_row_collapsed)	(XpathExplorer *ttt);
+	void (* xpath_model_changed) 	(XpathExplorer *ttt);
 };
 
-GType			xpath_explorer_get_type				(void);
-GtkWidget*		xpath_explorer_new					(void);
+GType		xpath_explorer_get_type	(void);
+GtkWidget*	xpath_explorer_new		(void);
 
+void		xpath_explorer_set_model(XpathExplorer *ttt, xmlTreeModel * xmltreemodel);
 
 G_END_DECLS
 

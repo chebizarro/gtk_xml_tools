@@ -1,6 +1,15 @@
 #include "xmltools.h"
 #include "xmltreemodel.h"
 
+enum {
+	XML_TREE_MODEL_CHANGED,
+	XML_TREE_MODEL_ERROR,
+	XML_TREE_MODEL_XSL_ERROR,
+	XML_TREE_MODEL_LAST_SIGNAL
+};
+
+static guint xml_tree_model_signals[XML_TREE_MODEL_LAST_SIGNAL] = { 0 };
+
 
 /* boring declarations of local functions */
  
@@ -53,7 +62,7 @@ static gboolean     xml_tree_model_iter_parent     (GtkTreeModel      *tree_mode
                                                  GtkTreeIter       *iter,
                                                  GtkTreeIter       *child);
  
-static xmlDocPtr throw_xml_error();
+static void throw_xml_error(xmlTreeModel * xml_tree_model, xmlErrorPtr error);
 												 
 
 static xmlNodePtr xmlGetParentNode(xmlNodePtr child);
@@ -109,35 +118,55 @@ static xmlXPathObjectPtr evaluate_xpath(xmlDoc *doc, gchar *xpath) {
 }
 
 /* XML Error Handling */ 
-static xmlDocPtr throw_xml_error(){
-	xmlErrorPtr err = xmlGetLastError();
-	xmlDocPtr doc = NULL;
-	xmlNodePtr errorNode = NULL;	
-    char buff[256];
+static void throw_xml_error(xmlTreeModel * xml_tree_model, xmlErrorPtr error){
+	//g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "XML Error: %s", error->message);
 
-    doc = xmlNewDoc((xmlChar *)"1.0");
-	sprintf(buff, "%s", err->file);
-	xmlNewDocProp(doc, (xmlChar *) "name", (xmlChar *) buff);
-	
-    errorNode = xmlNewNode(NULL,(xmlChar *) "ERROR");
-    xmlDocSetRootElement(doc, errorNode);
+	g_signal_emit(xml_tree_model, xml_tree_model_signals[XML_TREE_MODEL_ERROR],0,error);
 
-	sprintf(buff, "%d", err->domain);
-	xmlNewProp(errorNode, (xmlChar *) "domain", (xmlChar *) buff);
-	sprintf(buff, "%d", err->code);
-	xmlNewProp(errorNode, (xmlChar *) "code", (xmlChar *) buff);
-	sprintf(buff, "%d", err->level);
-	xmlNewProp(errorNode, (xmlChar *) "level", (xmlChar *) buff);
-	sprintf(buff, "%s", err->file);
-	xmlNewProp(errorNode, (xmlChar *) "file", (xmlChar *) buff);
-	sprintf(buff, "%d", err->line);
-	xmlNewProp(errorNode, (xmlChar *) "line", (xmlChar *) buff);
-	
-	xmlAddChild(errorNode, xmlNewText(err->message));
-	
-	return doc;
-	
 }
+
+
+static void throw_xsl_error(xmlTreeModel * xml_tree_model, const char * fmt,...)
+{
+	va_list ap;
+    int i = 0;
+    char *s;
+	xslErrorMessage error = { NULL, NULL, 0, NULL };
+
+	va_start(ap, fmt);
+
+    while (*fmt)
+		switch (*fmt++) {
+        case 's':
+            s = va_arg(ap, char *);
+            
+            int n = strlen(s);
+         
+			if (s[n-1] == 10) {
+			  s[n-1] = NULL;
+			}
+			
+            if(i == 0)
+				error.error = s;
+            
+            if(i == 1)
+				error.file = s;
+				
+			if(i == 2)
+				error.element = s;
+            
+            i++;
+            break;
+        case 'd': 
+            error.line = va_arg(ap, int);
+            break;
+        }
+    va_end(ap);
+
+	g_signal_emit(xml_tree_model, xml_tree_model_signals[XML_TREE_MODEL_XSL_ERROR],0,&error);
+    
+}
+
 
 static xmlNodePtr xmlGetRoot(xmlTreeModel *xml_tree_model) {
 	return (xmlNodePtr)xml_tree_model->xmldoc;
@@ -220,6 +249,7 @@ static unsigned long xmlChildElementCountN(xmlNodePtr node) {
 		case XML_ELEMENT_NODE:
 		case XML_DOCUMENT_NODE:
 		case XML_PI_NODE:
+		case XML_HTML_DOCUMENT_NODE:
 
 			elements = (xmlNodePtr)node->properties;
 
@@ -253,6 +283,7 @@ static xmlNodePtr xmlPreviousElementSiblingN(xmlNodePtr node) {
 	{
 	case XML_ELEMENT_NODE:
 	case XML_DOCUMENT_NODE:
+	case XML_HTML_DOCUMENT_NODE:
 		if(record == NULL)
 			record = xmlGetParentNode(node);
 			record = record->properties;
@@ -330,12 +361,40 @@ xml_tree_model_get_type (void)
 static void
 xml_tree_model_class_init (xmlTreeModelClass *klass)
 {
-  GObjectClass *object_class;
+	GObjectClass *object_class;
  
-  parent_class = (GObjectClass*) g_type_class_peek_parent (klass);
-  object_class = (GObjectClass*) klass;
+	parent_class = (GObjectClass*) g_type_class_peek_parent (klass);
+	object_class = (GObjectClass*) klass;
  
-  object_class->finalize = xml_tree_model_finalize;
+	object_class->finalize = xml_tree_model_finalize;
+  
+	xml_tree_model_signals[XML_TREE_MODEL_CHANGED] = g_signal_new ("xml-tree-model-changed",
+											G_TYPE_FROM_CLASS (klass),
+											G_SIGNAL_RUN_FIRST,
+											G_STRUCT_OFFSET (xmlTreeModelClass, xml_tree_model_changed),
+											NULL, 
+											NULL,								
+											g_cclosure_marshal_VOID__POINTER,
+											G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+	xml_tree_model_signals[XML_TREE_MODEL_ERROR] = g_signal_new ("xml-tree-model-error",
+											G_TYPE_FROM_CLASS (klass),
+											G_SIGNAL_RUN_FIRST,
+											G_STRUCT_OFFSET (xmlTreeModelClass, xml_tree_model_error),
+											NULL, 
+											NULL,								
+											g_cclosure_marshal_VOID__POINTER,
+											G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+	xml_tree_model_signals[XML_TREE_MODEL_XSL_ERROR] = g_signal_new ("xml-tree-model-xsl-error",
+											G_TYPE_FROM_CLASS (klass),
+											G_SIGNAL_RUN_FIRST,
+											G_STRUCT_OFFSET (xmlTreeModelClass, xml_tree_model_xsl_error),
+											NULL, 
+											NULL,								
+											g_cclosure_marshal_VOID__POINTER,
+											G_TYPE_NONE, 1, G_TYPE_POINTER);
+
 }
  
 /*****************************************************************************
@@ -379,6 +438,9 @@ xml_tree_model_init (xmlTreeModel *xml_tree_model)
 
 	LIBXML_TEST_VERSION /* Arrrgh - where should this go??? */
 	
+	xmlSetStructuredErrorFunc(xml_tree_model, throw_xml_error);
+	xsltSetGenericErrorFunc(xml_tree_model, throw_xsl_error);
+	
 	xml_tree_model->n_columns       = XML_TREE_MODEL_N_COLUMNS;
 	xml_tree_model->column_types[0] = G_TYPE_INT;	/* XML_TREE_MODEL_COL_TYPE	*/
 	xml_tree_model->column_types[1] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_NS	*/
@@ -386,13 +448,13 @@ xml_tree_model_init (xmlTreeModel *xml_tree_model)
 	xml_tree_model->column_types[3] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_CONTENT	*/
 	xml_tree_model->column_types[4] = G_TYPE_INT;		/* XML_TREE_MODEL_COL_LINE	*/
 	xml_tree_model->column_types[5] = G_TYPE_STRING;	/* XML_TREE_MODEL_COL_PATH	*/
-
-
 	g_assert (XML_TREE_MODEL_N_COLUMNS == 6);
  
 	xml_tree_model->stamp = g_random_int();  /* Random int to check whether an iter belongs to our model */
 	xml_tree_model->xmldoc = NULL;
+	xml_tree_model->xsldoc = NULL;
 	xml_tree_model->xpath = NULL;
+	xml_tree_model->valid = FALSE;
 	
 }
  
@@ -961,34 +1023,43 @@ void
 xml_tree_model_add_file (	xmlTreeModel	*xml_tree_model,
 							gchar			*filename)
 {
-
 	g_return_if_fail (XML_IS_TREE_MODEL(xml_tree_model));
 
-	GtkTreeIter   iter;
-	GtkTreePath  *path;
-
-	path = gtk_tree_path_new();
-	gtk_tree_path_prepend_index(path, 0);
-	xml_tree_model_get_iter(GTK_TREE_MODEL(xml_tree_model), &iter, path);
-	gtk_tree_model_row_deleted(GTK_TREE_MODEL(xml_tree_model),path);
-	gtk_tree_model_row_has_child_toggled(GTK_TREE_MODEL(xml_tree_model),path, &iter);
-	gtk_tree_path_free(path);
-
-	
+	GtkTreeIter   		iter;
 	xsltStylesheetPtr 	xsldoc;
-	xmlDocPtr			xmldoc;
-	
-	// First try as stylesheet
-	xsldoc = xsltParseStylesheetFile((xmlChar *)filename);
+	xmlDocPtr			xmldoc = NULL;
+	xmlNodePtr			cur;
+    xmlParserCtxtPtr	ctxt; /* the parser context */
 
-	if(xsldoc != NULL) {
-		xmldoc = xsldoc->doc;
+    ctxt = xmlNewParserCtxt();
+    if (ctxt == NULL)
+		return FALSE;
+    
+    /* parse the file, activating the DTD validation option */
+    xmldoc = xmlCtxtReadFile (ctxt, filename, NULL,	XML_PARSE_RECOVER | 
+													XML_PARSE_DTDVALID );
+    
+    if (ctxt->valid == 0) {
+		xml_tree_model->valid = FALSE;
 	} else {
-		xmldoc = xmlParseFile(filename);
+		xml_tree_model->valid = TRUE;
+	}
+	
+	if(xmldoc == NULL) 
+		return;
+	
+	cur = xmlDocGetRootElement(xmldoc);
+
+    if ((IS_XSLT_ELEM(cur)) &&
+		((IS_XSLT_NAME(cur, "stylesheet")) ||
+		(IS_XSLT_NAME(cur, "transform")))) {
+		xsldoc = xsltParseStylesheetDoc(xmldoc);
+	} else {
+		xsldoc = NULL;
 	}
 
 	if(xmldoc != NULL) {		
-		if(xml_tree_model->xsldoc) {
+		if(xml_tree_model->xsldoc != NULL) {
 			xsltFreeStylesheet(xml_tree_model->xsldoc);
 			xml_tree_model->xmldoc = NULL;
 		}
@@ -1000,7 +1071,7 @@ xml_tree_model_add_file (	xmlTreeModel	*xml_tree_model,
 		xml_tree_model->xsldoc = xsldoc;
 
 	} else {
-		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to load %s\n", filename);
+		//g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to load %s\n", filename);
 		return;
 	}
 	
@@ -1008,17 +1079,55 @@ xml_tree_model_add_file (	xmlTreeModel	*xml_tree_model,
 	
 	xml_tree_model->stamp = g_random_int();  /* Random int to check whether an iter belongs to our model */
 
-	path = gtk_tree_path_new();
-	gtk_tree_path_prepend_index(path, 0);
-	xml_tree_model_get_iter(GTK_TREE_MODEL(xml_tree_model), &iter, path);
-	gtk_tree_model_row_inserted(GTK_TREE_MODEL(xml_tree_model),path, &iter);
-	gtk_tree_model_row_has_child_toggled(GTK_TREE_MODEL(xml_tree_model),path, &iter);
-	gtk_tree_path_free(path);
+	gtk_tree_model_get_iter_first(GTK_TREE_MODEL(xml_tree_model), &iter);
+	gtk_tree_model_row_changed(GTK_TREE_MODEL(xml_tree_model),gtk_tree_path_new_first(), &iter);
+	
+	g_signal_emit(xml_tree_model, xml_tree_model_signals[XML_TREE_MODEL_CHANGED],0,NULL);
+	
+    xmlFreeParserCtxt(ctxt);
+
 }
- 
+
+void
+xml_tree_model_reload (xmlTreeModel *xmltreemodel)
+{
+	g_return_if_fail (XML_IS_TREE_MODEL(xmltreemodel));
+	xml_tree_model_add_file(xmltreemodel, xmltreemodel->filename);
+}
+
+void
+xml_tree_model_add_xmldoc(xmlTreeModel * xml_tree_model, xmlDocPtr xmldoc) {
+	GtkTreeIter   iter;
+
+	xml_tree_model->xmldoc = xmldoc;
+	xml_tree_model->stamp = g_random_int();  /* Random int to check whether an iter belongs to our model */
+
+	gtk_tree_model_get_iter_first(GTK_TREE_MODEL(xml_tree_model), &iter);
+	gtk_tree_model_row_changed(GTK_TREE_MODEL(xml_tree_model),gtk_tree_path_new_first(), &iter);
+
+	g_signal_emit(xml_tree_model, xml_tree_model_signals[XML_TREE_MODEL_CHANGED],0,NULL);
+}
+
+gint
+xml_tree_model_write_to_file(xmlTreeModel * ttt, gint file, gint format) {
+	xmlChar *xmlbuff;
+    gint buffersize;
+	gint byteswritten;
+	
+	if(ttt->xmldoc == NULL)
+		return -1;
+
+	xmlDocDumpFormatMemory(ttt->xmldoc, &xmlbuff, &buffersize, format);
+	
+	byteswritten = write(file, xmlbuff, buffersize);
+	
+    xmlFree(xmlbuff);
+
+	return byteswritten;
+}
 
 GtkListStore *
-xml_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
+xml_tree_model_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
 {
 	GtkListStore *list_store;
 	GtkTreeIter itern, iterx;
@@ -1037,7 +1146,7 @@ xml_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
 
 			size = (xpath_results->nodesetval) ? xpath_results->nodesetval->nodeNr : 0;
 
-			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_MESSAGE, "XPath returned %i nodes\n", size);
+			//g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_MESSAGE, "XPath returned %i nodes\n", size);
 
 			for(i = 0; i < size; ++i) {
 				xmlNodePtr record;
@@ -1062,7 +1171,7 @@ xml_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
 			}
 			xmlXPathFreeObject(xpath_results);
 		} else {
-			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "XPath returned no results\n");
+			//g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "XPath returned no results\n");
 		}
 	}
 	return list_store;
@@ -1070,38 +1179,8 @@ xml_get_xpath_results(xmlTreeModel *xmltreemodel, gchar *xpath)
 
 gboolean
 xml_tree_model_validate(xmlTreeModel *tree_model) {
-    xmlParserCtxtPtr ctxt; /* the parser context */
-    xmlDocPtr doc; /* the resulting document tree */
-	gboolean valid;
 
-    /* create a parser context */
-    ctxt = xmlNewParserCtxt();
-    if (ctxt == NULL) {
-   		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to allocate parser context\n");
-	return FALSE;
-    }
-    /* parse the file, activating the DTD validation option */
-    doc = xmlCtxtReadFile(ctxt, tree_model->filename, NULL, XML_PARSE_DTDVALID);
-    /* check if parsing suceeded */
-    if (doc == NULL) {
-		g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to parse %s\n", tree_model->filename);
-		valid = FALSE;
-    } else {
-	/* check if validation suceeded */
-        if (ctxt->valid == 0) {
-			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_WARNING, "Failed to validate %s\n", tree_model->filename);
-			valid = FALSE;
-		} else {
-			g_log(XML_TREE_MESSAGE, G_LOG_LEVEL_MESSAGE, "%s is valid\n", tree_model->filename);
-			valid = TRUE;
-		}
-	/* free up the resulting document */
-	xmlFreeDoc(doc);
-    }
-    /* free up the parser context */
-    xmlFreeParserCtxt(ctxt);
-    
-    return valid;
+    return tree_model->valid;
 }
 
 GtkListStore *
@@ -1127,4 +1206,55 @@ xml_tree_model_get_stylesheet_params(xmlTreeModel *xmltreemodel) {
 		}
 	}
 	return list_store;
+}
+
+
+/* Transform files */
+xmlTreeModel *
+xml_tree_model_transform (	xmlTreeModel * xml,
+							xmlTreeModel * xslt,
+							GHashTable * params)
+{
+	xmlDocPtr 		xslResult;
+	xmlTreeModel	* treemodel;
+	gint 			hashtablesize = g_hash_table_size(params);
+	gint			arraysize = (hashtablesize * 2) + 1;
+	const gchar		* params_array[arraysize];
+
+	GHashTableIter iter;
+	gchar * key, * value;
+	gint i = 0;
+	g_hash_table_iter_init (&iter, params);
+	
+	while (g_hash_table_iter_next (&iter, &key, &value))
+	{
+		params_array[i] = key;
+		params_array[++i] = value;
+		++i;
+	}
+	
+	params_array[i] = NULL;
+
+	xslResult = xsltApplyStylesheet(xslt->xsldoc, xml->xmldoc, params_array);
+
+	if(!xslResult)
+	{
+		return NULL;
+	}
+
+	treemodel = xml_tree_model_new();
+	xml_tree_model_add_xmldoc(treemodel, xslResult);
+	
+	return treemodel;
+}
+
+
+gboolean
+xml_tree_model_is_stylesheet (xmlTreeModel *ttt)
+{
+	if(ttt->xsldoc != NULL) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
 }

@@ -40,6 +40,17 @@ enum
 #define XML_N_NODE_TYPES 22
 #define XML_TREE_MESSAGE "xml_tree_message"
 
+
+typedef struct _xslErrorMessage		 xslErrorMessage;
+
+struct _xslErrorMessage
+{
+	gchar	* error;
+	gchar	* file;
+	gint	line;
+	gchar	* element;
+};
+
 typedef struct _xmlTreeModel			 xmlTreeModel;
 typedef struct _xmlTreeModelClass	xmlTreeModelClass;
 
@@ -57,11 +68,11 @@ struct _xmlTreeModel
 
 	xsltStylesheetPtr	xsldoc;
 
-	xsltStylesheetPtr	stylesheet;
-	
 	gchar				*xpath;
 	
 	gchar				*filename;
+	
+	gboolean			valid;
 	
 	/* These two fields are not absolutely necessary, but they		*/
 	/*	 speed things up a bit in our get_value implementation		*/
@@ -78,6 +89,12 @@ struct _xmlTreeModel
 struct _xmlTreeModelClass
 {
 	GObjectClass parent_class;
+	
+	/* Signals */
+	void (* xml_tree_model_changed)	(xmlTreeModel *ttt);
+	void (* xml_tree_model_error)	(xmlTreeModel *ttt);
+	void (* xml_tree_model_xsl_error)	(xmlTreeModel *ttt);
+
 };
  
  
@@ -88,10 +105,19 @@ xmlTreeModel	*xml_tree_model_new (void);
 
 void	xml_tree_model_add_file (xmlTreeModel   *xml_tree_model, gchar  *filename);
 
-GtkListStore * xml_get_xpath_results(xmlTreeModel *xmllist, gchar *xpath);
+GtkListStore * xml_tree_model_get_xpath_results(xmlTreeModel *xmllist, gchar *xpath);
 
 gboolean	xml_tree_model_validate(xmlTreeModel *tree_model);
 
 GtkListStore * xml_tree_model_get_stylesheet_params(xmlTreeModel *xmltreemodel);
+
+xmlTreeModel *xml_tree_model_transform (xmlTreeModel * xml, xmlTreeModel * xslt, GHashTable *params);
+
+gint xml_tree_model_write_to_file(xmlTreeModel * ttt, gint fd, gint format);
+
+gboolean xml_tree_model_is_stylesheet(xmlTreeModel *ttt); 
+
+void	xml_tree_model_reload (xmlTreeModel *xmltreemodel);
+
 
 #endif /* _xml_tree_model_h_included_ */

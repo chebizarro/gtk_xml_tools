@@ -3,6 +3,7 @@
  
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#include <glib/gi18n.h>
 
 /* XML/XSLT Libraries */
 #include <libxml/parser.h>
