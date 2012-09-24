@@ -119,5 +119,6 @@ gboolean xml_tree_model_is_stylesheet(xmlTreeModel *ttt);
 
 void	xml_tree_model_reload (xmlTreeModel *xmltreemodel);
 
+GtkTreePath * xml_tree_model_get_path_from_xpath(xmlTreeModel *ttt, gchar *xpath);
 
 #endif /* _xml_tree_model_h_included_ */

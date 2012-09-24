@@ -24,7 +24,6 @@ typedef struct _XmlNavigatorClass		XmlNavigatorClass;
 typedef struct _xmlTreeModelFilter		xmlTreeModelFilter;
 typedef struct _xmlToolBarButton		xmlToolBarButton;
 typedef struct _xmlToolBar				xmlToolBar;
-typedef struct _xmlXpathExplorer		xmlXpathExplorer;
 typedef struct _xmlValidator				xmlValidator;
 
 struct _xmlTreeModelFilter
@@ -47,14 +46,6 @@ struct _xmlToolBar
 	xmlToolBarButton	toolbar_buttons[6];
 };
 
-struct _xmlXpathExplorer
-{
-	GtkVBox				* widget;
-	
-	GtkExpander			* expander;
-	GtkEntry			* entry;
-	GtkTreeView			* results;
-};
 
 struct _xmlValidator
 {
@@ -70,13 +61,10 @@ struct _XmlNavigator
 	GtkVBox					widget;
 
 	xmlTreeModel			* model;
-	xmlTreeModel			* stylesheet;
-	xmlTreeModel			* result;
 
 	xmlTreeModelFilter	filter;
 
 	xmlToolBar				toolbar;
-	xmlXpathExplorer		xpathExplorer;
 	xmlValidator			validator;
 	
 	GtkTreeView				* navigator;
@@ -92,14 +80,15 @@ struct _XmlNavigatorClass
 	void (* xml_row_expanded)	(XmlNavigator *ttt);
 	void (* xml_row_collapsed)	(XmlNavigator *ttt);
 	void (* xml_model_changed)	(XmlNavigator *ttt);
-	void (* xpath_model_changed)	(XmlNavigator *ttt);
+	void (* xml_button_press)	(XmlNavigator *ttt);
 };
 
 GType		xml_navigator_get_type	(void);
 GtkWidget*	xml_navigator_new		(void);
 
 void		xml_navigator_set_model	(XmlNavigator *ttt, xmlTreeModel *xmltreemodel);
-void		xml_navigator_set_stylesheet(XmlNavigator *ttt, xmlTreeModel * xmltreemodel);
+void		xml_navigator_set_stylesheet(XmlNavigator *ttt, xmlTreeModel *xmltreemodel);
+void 		xml_navigator_goto_xpath(XmlNavigator *ttt, gchar *xpath);
 
 G_END_DECLS
 

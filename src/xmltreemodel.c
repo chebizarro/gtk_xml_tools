@@ -277,25 +277,47 @@ static xmlNodePtr xmlPreviousElementSiblingN(xmlNodePtr node) {
 
 	g_return_val_if_fail(node != NULL, NULL);
 
-	xmlNodePtr record = node->prev;
+	xmlNodePtr record = NULL; // = node->prev;
 	
 	switch(node->type)
 	{
 	case XML_ELEMENT_NODE:
-	case XML_DOCUMENT_NODE:
-	case XML_HTML_DOCUMENT_NODE:
-		if(record == NULL)
+		record = node->prev;
+
+		while(xmlIsBlankNode(record)==1) {
+			record = record->prev;
+		}
+				
+		if(record == NULL) {
 			record = xmlGetParentNode(node);
 			record = record->properties;
+			if(record != NULL) {
+				while(record->next != NULL) {
+					record = record->next;
+				}
+			}
+		}
+		
+		break;
+		
+	case XML_TEXT_NODE:
+		while(xmlIsBlankNode(record)==1) {
+			record = record->prev;
+		}
+		
+		break;
+	case XML_ATTRIBUTE_NODE:
+		record = node->prev;
+		break;
+	case XML_DOCUMENT_NODE:
+	case XML_HTML_DOCUMENT_NODE:
+		record = NULL;
 		break;
 	default:
-		
+		record = xmlPreviousElementSibling(node);
 		break;
 	}
 	
-	while(xmlIsBlankNode(record)==1) {
-		record = record->prev;
-	}
 	
 	return record;
 }
@@ -577,7 +599,6 @@ xml_tree_model_get_iter (GtkTreeModel *tree_model,
 
 	iter->user_data = result;
 	iter->stamp = xml_tree_model->stamp; 
-	iter->user_data = result; 
 	
 	return TRUE; 
 }
@@ -615,6 +636,8 @@ xml_tree_model_get_path (GtkTreeModel *tree_model,
 	}
 
 	gtk_tree_path_prepend_index (path, 0);
+	
+	gchar *gpath = gtk_tree_path_to_string(path);
 	
 	return path; 
 }
@@ -1257,4 +1280,29 @@ xml_tree_model_is_stylesheet (xmlTreeModel *ttt)
 	} else {
 		return FALSE;
 	}
+}
+
+GtkTreePath *
+xml_tree_model_get_path_from_xpath (xmlTreeModel *ttt, gchar *xpath)
+{
+	GtkTreeIter iter;
+	GtkTreePath * treepath = NULL;
+	xmlXPathObjectPtr xpath_results;
+	gint size;
+	
+	g_return_val_if_fail(ttt->xmldoc != NULL, treepath);
+
+	xpath_results = evaluate_xpath(ttt->xmldoc, xpath);
+
+	g_return_val_if_fail(xpath_results != NULL, treepath);
+
+	size = (xpath_results->nodesetval) ? xpath_results->nodesetval->nodeNr : 0;
+	if(size > 0) {
+		iter.user_data = xpath_results->nodesetval->nodeTab[0];
+		iter.stamp = ttt->stamp;
+		treepath = xml_tree_model_get_path(ttt, &iter);
+	}
+	xmlXPathFreeObject(xpath_results);
+	
+	return treepath;
 }

@@ -38,9 +38,9 @@ struct _XpathExplorerClass
 	GtkVBoxClass parent_class;
 
 	void (* xpath_row_activated)	(XpathExplorer *ttt);
-	void (* xpath_row_expanded)		(XpathExplorer *ttt);
-	void (* xpath_row_collapsed)	(XpathExplorer *ttt);
 	void (* xpath_model_changed) 	(XpathExplorer *ttt);
+	void (* xpath_show_in_nav)	 	(XpathExplorer *ttt);
+	void (* xpath_button_press)	 	(XpathExplorer *ttt);
 };
 
 GType		xpath_explorer_get_type	(void);

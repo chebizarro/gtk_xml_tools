@@ -249,6 +249,10 @@ xslt_transformer_init (xsltTransformer *ttt)
 	GtkLabel	*label;
 	GtkFrame	*frame;
 	
+	GtkWidget	*panel;
+	
+	panel = gtk_hbox_new(FALSE,0);
+	
 	label = gtk_label_new(_("Template"));
 
 	ttt->entry = make_xslt_entry(ttt);
@@ -259,17 +263,22 @@ xslt_transformer_init (xsltTransformer *ttt)
 
     scrolled_window = make_scrolled_window();
 
-    ttt->parameters = make_xslt_param_view(ttt);
+    vbox = gtk_vbox_new(FALSE, 0);
+	//gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), vbox);
 
-    vbox = gtk_vbox_new(TRUE, 3);
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrolled_window), vbox);
-	gtk_container_add(GTK_CONTAINER(vbox), ttt->parameters);
+    ttt->parameters = make_xslt_param_view(ttt);
+	gtk_container_add(GTK_CONTAINER(scrolled_window), ttt->parameters);
 
 	frame = gtk_frame_new(_("Parameters"));
     gtk_container_add(GTK_CONTAINER(frame), scrolled_window);
 
-	gtk_box_pack_start(GTK_BOX(ttt), GTK_WIDGET(hbox), FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(ttt), GTK_WIDGET(frame), TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(hbox), FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(frame), TRUE, TRUE, 0);
+	
+	gtk_box_pack_start(GTK_BOX(panel), GTK_WIDGET(vbox), FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(panel), GTK_WIDGET(make_xslt_param_view(ttt)), FALSE, FALSE, 0);
+
+	gtk_box_pack_start(GTK_BOX(ttt), GTK_WIDGET(panel), FALSE, FALSE, 0);
 	
 	gtk_container_set_border_width(GTK_CONTAINER(ttt), 6);
 
@@ -308,14 +317,14 @@ xslt_entry_icon_press_cb (	GtkEntry		* entry,
 	GtkWidget *file_menu, *open_item, *items;
 	file_menu = gtk_menu_new();
 
-	open_item = gtk_menu_item_new_with_label("Add File");
+	open_item = gtk_menu_item_new_with_label(_("Add File"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), open_item);
 	g_signal_connect(open_item, "activate", G_CALLBACK(xslt_add_file_menu_action), ttt);
 	gtk_widget_show (open_item);
 	
 	items = gtk_menu_new();
 
-	open_item = gtk_menu_item_new_with_label("Open Files...");
+	open_item = gtk_menu_item_new_with_label(_("Open Files..."));
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(open_item),items);
 	gtk_widget_show (open_item);
 

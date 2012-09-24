@@ -48,11 +48,11 @@ struct _xmlTools
 
 struct _xmlTools
 {
-	GtkWidget	*navigator;
-	GtkWidget	*explorer;
-	GtkWidget	*transformer;
+	XmlNavigator	*navigator;
+	XpathExplorer	*explorer;
+	xsltTransformer	*transformer;
 	/* Widgets after this point will not be displayed */
-	GtkWidget	*model;
+	xmlTreeModel	*model;
 };
 
 
@@ -63,8 +63,8 @@ enum {
 	XTOOLS_COUNT
 };
 
-static GHashTable		* xtools;
-static xmlTools		* tools_blank;
+static GHashTable	* xtools;
+static xmlTools	* tools_blank;
 static gint		xtools_pages[XTOOLS_COUNT];
 static GtkWidget	*xtools_geany_pages[XTOOLS_COUNT];
 static GtkWidget	*xtools_views_blank[XTOOLS_COUNT];
@@ -152,6 +152,15 @@ static gboolean change_focus_to_editor(GeanyDocument *doc)
 }
 
 static gboolean
+on_xpath_show_in_navigator (XpathExplorer *widget,
+							gchar		  *xpath,
+							XmlNavigator  *navigator)
+{
+	xml_navigator_goto_xpath(navigator, xpath);
+	return TRUE;
+}
+
+static gboolean
 on_navigator_activated(	GtkWidget *widget,
 						GtkTreeSelection *selection)
 {
@@ -205,7 +214,7 @@ on_document_filetype_set (	GObject *obj,
 }
 
 static void
-on_xsl_transform (	XmlNavigator 	* ttt,
+on_xsl_transform (	xsltTransformer 	* ttt,
 					GtkWidget	 	* button)
 {
 	GeanyDocument* gresult;
@@ -345,18 +354,18 @@ xtools_new( GeanyDocument *doc) {
 	
 	xml_navigator_set_model(tools->navigator, tools->model);
 	g_signal_connect(tools->navigator, "xml-row-activated", G_CALLBACK(on_navigator_activated), NULL);
-	//g_signal_connect(tools->navigator, "xsl-menu-activated", G_CALLBACK(on_xsl_menu_activated), NULL);
-	//g_signal_connect(tools->navigator, "xsl-model-transformed", G_CALLBACK(on_xsl_transform), NULL);
-	//ui_widget_modify_font_from_string(tools->navigator->navigator), geany->interface_prefs->tagbar_font);
 	
 	tools->explorer = xpath_explorer_new();
 	xpath_explorer_set_model(tools->explorer, tools->model);
 	g_signal_connect(tools->explorer, "xpath-row-activated", G_CALLBACK(on_navigator_activated), NULL);
-	//ui_widget_modify_font_from_string(GTK_WIDGET(tools->explorer->results), geany->interface_prefs->tagbar_font);
+	g_signal_connect(tools->explorer, "xpath-show-in-navigator", G_CALLBACK(on_xpath_show_in_navigator), tools->navigator);
+	ui_widget_modify_font_from_string(GTK_WIDGET(tools->explorer->results), geany->interface_prefs->tagbar_font);
 
 	tools->transformer = xslt_transformer_new();
 	xslt_transformer_set_model(tools->transformer, tools->model);
-	//ui_widget_modify_font_from_string(GTK_WIDGET(tools->transformer->parameters), geany->interface_prefs->tagbar_font);
+	g_signal_connect(tools->navigator, "xslt-transformer-menu-activated", G_CALLBACK(on_xsl_menu_activated), NULL);
+	g_signal_connect(tools->navigator, "xslt-transformer-model-transformed", G_CALLBACK(on_xsl_transform), NULL);
+	ui_widget_modify_font_from_string(GTK_WIDGET(tools->navigator->navigator), geany->interface_prefs->tagbar_font);
 
 	return tools;
 }
@@ -372,7 +381,7 @@ xtools_new_blank()
 	
 	tools->explorer = xpath_explorer_new();
 	//xpath_explorer_set_model(tools->explorer, NULL);
-	gtk_widget_set_name(tools->explorer, "Xpath Explorer");
+	gtk_widget_set_name(tools->explorer, "XPath Explorer");
 	gtk_widget_set_sensitive(tools->explorer, FALSE);
 	
 	tools->transformer = xslt_transformer_new();
