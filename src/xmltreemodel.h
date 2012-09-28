@@ -33,6 +33,7 @@ enum
 	XML_TREE_MODEL_COL_NAME,
 	XML_TREE_MODEL_COL_CONTENT,
 	XML_TREE_MODEL_COL_LINE,
+	XML_TREE_MODEL_COL_POS,
 	XML_TREE_MODEL_COL_XPATH,
 	XML_TREE_MODEL_N_COLUMNS,
 };
@@ -67,6 +68,10 @@ struct _xmlTreeModel
 	xmlDocPtr			xmldoc;
 
 	xsltStylesheetPtr	xsldoc;
+	
+	xmlParserCtxtPtr	parser;
+
+	GList				*nodeinfo;
 
 	gchar				*xpath;
 	
@@ -120,5 +125,8 @@ gboolean xml_tree_model_is_stylesheet(xmlTreeModel *ttt);
 void	xml_tree_model_reload (xmlTreeModel *xmltreemodel);
 
 GtkTreePath * xml_tree_model_get_path_from_xpath(xmlTreeModel *ttt, gchar *xpath);
+
+GtkTreePath * xml_tree_model_get_path_from_position(xmlTreeModel *ttt, gint position);
+
 
 #endif /* _xml_tree_model_h_included_ */

@@ -90,6 +90,7 @@ modify_columns (GtkTreeModel *model,
 		case XML_TREE_MODEL_COL_TYPE:
 		case XML_TREE_MODEL_COL_CONTENT:
 		case XML_TREE_MODEL_COL_LINE:
+		case XML_TREE_MODEL_COL_POS:
 		case XML_TREE_MODEL_COL_XPATH:
 			gtk_tree_model_get_value( child, &iter_c, column, value);
 			break;
@@ -201,6 +202,14 @@ ns_button_toggle (	GtkToggleToolButton *button,
 
 	gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(ttt->filter.filter));
 	return TRUE;
+}
+
+static void
+update_breadcrumbs (XmlNavigator *ttt,
+					xmlTreeModel *xmltreemodel,
+					XmlBreadcrumbs *breadcrumbs)
+{
+	xml_breadcrumbs_set_model(ttt->breadcrumbs, xmltreemodel);
 }
 
 static gboolean
@@ -456,7 +465,7 @@ make_navigator_view (XmlNavigator * ttt)
 	GtkCellRenderer		*renderer, *icon_renderer;
 	GtkWidget			*view;
  
-	view = gtk_tree_view_new ();
+	view = gtk_tree_view_new_with_model (xml_tree_model_new());
 	
 	g_signal_connect(view, "button-press-event",
 			G_CALLBACK(xml_navigator_button_press_event), ttt);
@@ -599,13 +608,72 @@ xml_navigator_new ()
 	return GTK_WIDGET (g_object_new (xml_navigator_get_type (), "orientation", GTK_ORIENTATION_VERTICAL, NULL));
 }
 
+gboolean
+xml_navigator_goto_path(XmlBreadcrumbs *breadcrumbs, GtkTreePath *path, XmlNavigator *ttt) {
+	g_return_if_fail(ttt != NULL);
+	g_return_if_fail(path != NULL);
+	g_return_if_fail(breadcrumbs != NULL);
+
+	GtkTreePath * treepath;
+	GtkTreeViewColumn * col;
+	
+	col = gtk_tree_view_get_column(ttt->navigator, 0);
+
+	treepath = gtk_tree_model_filter_convert_child_path_to_path(ttt->filter.filter, path);
+
+	g_return_if_fail(treepath != NULL);
+
+	gtk_tree_view_expand_to_path(ttt->navigator, treepath);
+	gtk_tree_view_set_cursor(ttt->navigator, treepath, col, FALSE);
+
+	gtk_tree_path_free(treepath);
+
+}
+
+static void
+make_breadcrumbs(XmlNavigator *ttt)
+{
+	ttt->breadcrumbs = xml_breadcrumbs_new();
+    gtk_box_pack_end (GTK_BOX(ttt), ttt->breadcrumbs, FALSE, FALSE, 0);
+   	g_signal_connect(ttt, "xml-model-changed", G_CALLBACK(update_breadcrumbs), ttt->breadcrumbs);
+   	g_signal_connect(ttt->breadcrumbs, "xml-breadcrumb-path-clicked", G_CALLBACK(xml_navigator_goto_path), ttt);
+
+}
+
 static void
 xml_navigator_init (XmlNavigator *ttt)
 {
 	make_toolbar(ttt);
 	make_filter(ttt);
 	make_navigator(ttt);
+	make_breadcrumbs(ttt);
 }
+
+void
+xml_navigator_goto_file_location (XmlNavigator *ttt, int column)
+{
+	g_return_if_fail(ttt != NULL);
+	g_return_if_fail(ttt->model != NULL);
+
+	GtkTreePath * treepath, *childpath;
+	GtkTreeViewColumn * col;
+	
+	col = gtk_tree_view_get_column(ttt->navigator, 0);
+
+	childpath = xml_tree_model_get_path_from_position(ttt->model, column);
+	
+	treepath = gtk_tree_model_filter_convert_child_path_to_path(ttt->filter.filter, childpath);
+
+	g_return_if_fail(treepath != NULL);
+
+	gtk_tree_view_expand_to_path(ttt->navigator, treepath);
+	gtk_tree_view_set_cursor(ttt->navigator, treepath, col, FALSE);
+	//gtk_tree_view_row_activated(ttt->navigator, treepath, col);
+
+	gtk_tree_path_free(treepath);
+	gtk_tree_path_free(childpath);
+}
+
 
 void
 xml_navigator_goto_xpath (XmlNavigator *ttt, gchar *xpath)

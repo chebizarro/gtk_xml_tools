@@ -9,6 +9,7 @@
 #include <gtk/gtk.h>
 #include "xmltreemodel.h"
 #include "xmlcellrenderer.h"
+#include "xmlbreadcrumbs.h"
 
 G_BEGIN_DECLS
 
@@ -62,7 +63,9 @@ struct _XmlNavigator
 
 	xmlTreeModel			* model;
 
-	xmlTreeModelFilter	filter;
+	xmlTreeModelFilter		filter;
+	
+	XmlBreadcrumbs			*breadcrumbs;
 
 	xmlToolBar				toolbar;
 	xmlValidator			validator;
@@ -86,9 +89,10 @@ struct _XmlNavigatorClass
 GType		xml_navigator_get_type	(void);
 GtkWidget*	xml_navigator_new		(void);
 
-void		xml_navigator_set_model	(XmlNavigator *ttt, xmlTreeModel *xmltreemodel);
-void		xml_navigator_set_stylesheet(XmlNavigator *ttt, xmlTreeModel *xmltreemodel);
-void 		xml_navigator_goto_xpath(XmlNavigator *ttt, gchar *xpath);
+void	xml_navigator_set_model			(XmlNavigator *ttt, xmlTreeModel *xmltreemodel);
+void	xml_navigator_set_stylesheet	(XmlNavigator *ttt, xmlTreeModel *xmltreemodel);
+void	xml_navigator_goto_xpath		(XmlNavigator *ttt, gchar *xpath);
+void	xml_navigator_goto_file_location(XmlNavigator *ttt, int column);
 
 G_END_DECLS
 

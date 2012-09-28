@@ -225,7 +225,7 @@ xpath_explorer_init (XpathExplorer *ttt)
 	frame = gtk_frame_new(_("Results"));
     gtk_container_add(GTK_CONTAINER(frame), scrolled_window);
 
-	gtk_box_pack_start(GTK_BOX(ttt), GTK_WIDGET(hbox), FALSE, FALSE, 6);
+	gtk_box_pack_start(GTK_BOX(ttt), GTK_WIDGET(hbox), FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(ttt), GTK_WIDGET(frame), TRUE, TRUE, 0);
 	
 	gtk_container_set_border_width(GTK_CONTAINER(ttt), 6);
@@ -486,6 +486,14 @@ xpath_view_onPopupMenu (GtkWidget *treeview, XpathExplorer *ttt)
     return FALSE;
 }
 
+GtkListStore * 
+make_results_blank() {
+	xmlTreeModel	*dummy = xml_tree_model_new();
+	GtkListStore	*blank = gtk_list_store_newv (dummy->n_columns,dummy->column_types);
+	//g_free(dummy);
+	return blank;
+}
+
 static GtkWidget *
 make_results_view (XpathExplorer * ttt)
 {
@@ -495,7 +503,8 @@ make_results_view (XpathExplorer * ttt)
 	GtkCellRenderer		*renderer, *icon_renderer;
 	GtkWidget			*view;
 
-	view = gtk_tree_view_new_with_model(xml_tree_model_new());
+	view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(make_results_blank()));
+	//view = gtk_tree_view_new();
 	
 	gtk_tree_view_set_enable_tree_lines(GTK_TREE_VIEW(view), TRUE);
 	
