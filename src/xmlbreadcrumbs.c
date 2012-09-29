@@ -31,7 +31,6 @@ typedef struct {
 	gchar			*ns;
 	gchar			*xpath;
 	GtkTreePath		*path;
-
 	/* custom icon */ 
 	GdkPixbuf *custom_icon;
 	GtkWidget *image;
@@ -56,6 +55,7 @@ struct _XmlBreadcrumbsDetails {
 	guint			settings_signal_id;
 	gint16			slider_width;
 	guint			timer;
+	guint			spacing;
 	guint			slider_visible : 1;
 	guint			need_timer : 1;
 	guint			ignore_click : 1;
@@ -125,6 +125,7 @@ xml_breadcrumbs_init (XmlBreadcrumbs *path_bar)
 
     path_bar->priv->up_slider_button = get_slider_button (path_bar, GTK_ARROW_LEFT);
     path_bar->priv->down_slider_button = get_slider_button (path_bar, GTK_ARROW_RIGHT);
+	path_bar->priv->spacing = 3;
 
     g_signal_connect_swapped (path_bar->priv->up_slider_button, "clicked", G_CALLBACK (xml_breadcrumbs_scroll_up), path_bar);
     g_signal_connect_swapped (path_bar->priv->down_slider_button, "clicked", G_CALLBACK (xml_breadcrumbs_scroll_down), path_bar);
@@ -255,7 +256,7 @@ static void
 xml_breadcrumbs_unmap (GtkWidget *widget)
 {
 	xml_breadcrumbs_stop_scrolling (XML_BREADCRUMBS (widget));
-	gdk_window_hide (XML_BREADCRUMBS (widget)->priv->event_window);
+	//gdk_window_hide (XML_BREADCRUMBS (widget)->priv->event_window);
 
 	GTK_WIDGET_CLASS (xml_breadcrumbs_parent_class)->unmap (widget);
 }
@@ -292,200 +293,190 @@ static void
 xml_breadcrumbs_size_allocate ( GtkWidget     *widget,
 								GtkAllocation *allocation)
 {
-	GtkWidget *child;
-	XmlBreadcrumbs *path_bar;
-	GtkTextDirection direction;
-	GtkAllocation child_allocation;
-	GList *list, *first_button;
-	gint width;
-	gint largest_width;
-	gboolean need_sliders;
-	gint up_slider_offset;
-	gint down_slider_offset;
-	GtkRequisition child_requisition;
-	gboolean needs_reorder = FALSE;
+  GtkWidget *child;
+  XmlBreadcrumbs *path_bar = XML_BREADCRUMBS (widget);
+  GtkTextDirection direction;
+  GtkAllocation child_allocation;
+  GList *list, *first_button;
+  gint width;
+  gint allocation_width;
+  gint border_width;
+  gboolean need_sliders = FALSE;
+  gint up_slider_offset = 0;
+  gint down_slider_offset = 0;
 
-	need_sliders = FALSE;
-	up_slider_offset = 0;
-	down_slider_offset = 0;
-	path_bar = XML_BREADCRUMBS (widget);
+  widget->allocation = *allocation;
 
-	gtk_widget_set_allocation (widget, allocation);
+  /* No path is set; we don't have to allocate anything. */
+  if (path_bar->priv->button_list == NULL)
+    return;
 
-	if (gtk_widget_get_realized (widget)) {
-		gdk_window_move_resize (path_bar->priv->event_window,
-					allocation->x, allocation->y,
-					allocation->width, allocation->height);
+  direction = gtk_widget_get_direction (widget);
+  border_width = (gint) GTK_CONTAINER (path_bar)->border_width;
+  allocation_width = allocation->width - 2 * border_width;
+
+  /* First, we check to see if we need the scrollbars. */
+  width = 0;
+
+  for (list = path_bar->priv->button_list; list; list = list->next)
+  {
+	child = BUTTON_DATA (list->data)->button;
+	width += child->requisition.width + path_bar->priv->spacing;
+  }
+
+  if (width <= allocation_width)
+    {
+	first_button = g_list_last (path_bar->priv->button_list);
+    }
+  else
+    {
+      gboolean reached_end = FALSE;
+      gint slider_space = 2 * (path_bar->priv->spacing + path_bar->priv->slider_width);
+
+      if (path_bar->priv->first_scrolled_button)
+	first_button = path_bar->priv->first_scrolled_button;
+      else
+	first_button = path_bar->priv->button_list;
+      need_sliders = TRUE;
+
+      /* To see how much space we have, and how many buttons we can display.
+       * We start at the first button, count forward until hit the new
+       * button, then count backwards.
+       */
+      /* Count down the path chain towards the end. */
+      width = BUTTON_DATA (first_button->data)->button->requisition.width;
+      list = first_button->prev;
+      while (list && !reached_end)
+	{
+	  child = BUTTON_DATA (list->data)->button;
+
+	  if (width + child->requisition.width +
+	      path_bar->priv->spacing + slider_space > allocation_width)
+	    reached_end = TRUE;
+	  else
+	    width += child->requisition.width + path_bar->priv->spacing;
+
+	  list = list->prev;
 	}
 
-    /* No path is set so we don't have to allocate anything. */
-    if (path_bar->priv->button_list == NULL) {
-		return;
-	}
+      /* Finally, we walk up, seeing how many of the previous buttons we can
+       * add */
+      while (first_button->next && !reached_end)
+	{
+	  child = BUTTON_DATA (first_button->next->data)->button;
+
+	  if (width + child->requisition.width + path_bar->priv->spacing + slider_space > allocation_width)
+	    {
+	      reached_end = TRUE;
+	    }
+	  else
+	    {
+	      width += child->requisition.width + path_bar->priv->spacing;
     
-    direction = gtk_widget_get_direction (widget);
+	      first_button = first_button->next;
+	    }
+	}
+    }
 
-  	/* First, we check to see if we need the scrollbars. */
-	width = 0;
+  /* Now, we allocate space to the buttons */
+  child_allocation.y = allocation->y + border_width;
+  child_allocation.height = MAX (1, (gint) allocation->height - border_width * 2);
 
-	for (list = path_bar->priv->button_list; list; list = list->next) {
-		child = BUTTON_DATA (list->data)->button;
-		gtk_widget_size_request(child, &child_requisition);
-		width += child_requisition.width;
+  if (direction == GTK_TEXT_DIR_RTL)
+    {
+      child_allocation.x = allocation->x + allocation->width - border_width;
+      if (need_sliders)
+	{
+	  child_allocation.x -= (path_bar->priv->spacing + path_bar->priv->slider_width);
+	  up_slider_offset = allocation->width - border_width - path_bar->priv->slider_width;
+	}
+    }
+  else
+    {
+      child_allocation.x = allocation->x + border_width;
+      if (need_sliders)
+	{
+	  up_slider_offset = border_width;
+	  child_allocation.x += (path_bar->priv->spacing + path_bar->priv->slider_width);
+	}
+    }
+
+  for (list = first_button; list; list = list->prev)
+    {
+      child = BUTTON_DATA (list->data)->button;
+
+      child_allocation.width = child->requisition.width;
+      if (direction == GTK_TEXT_DIR_RTL)
+	child_allocation.x -= child_allocation.width;
+
+      /* Check to see if we've don't have any more space to allocate buttons */
+      if (need_sliders && direction == GTK_TEXT_DIR_RTL)
+	{
+	  if (child_allocation.x - path_bar->priv->spacing - path_bar->priv->slider_width < widget->allocation.x + border_width)
+	    break;
+	}
+      else if (need_sliders && direction == GTK_TEXT_DIR_LTR)
+	{
+	  if (child_allocation.x + child_allocation.width + path_bar->priv->spacing + path_bar->priv->slider_width >
+	      widget->allocation.x + border_width + allocation_width)
+	    break;
 	}
 
-	if (width <= allocation->width) {
-		first_button = g_list_last (path_bar->priv->button_list);
-	} else {
-		gboolean reached_end;
-		gint slider_space;
-		reached_end = FALSE;
-		slider_space = 2 * (path_bar->priv->slider_width);
-		if (path_bar->priv->first_scrolled_button) {
-			first_button = path_bar->priv->first_scrolled_button;
-		} else {
-			first_button = path_bar->priv->button_list;
-		}        
-		need_sliders = TRUE;
-		/* To see how much space we have, and how many buttons we can display.
-		* We start at the first button, count forward until hit the new
-		* button, then count backwards.
-		*/
-		/* Count down the path chain towards the end. */
-		gtk_widget_size_request(BUTTON_DATA (first_button->data)->button, &child_requisition);
+      gtk_widget_set_child_visible (BUTTON_DATA (list->data)->button, TRUE);
+      gtk_widget_size_allocate (child, &child_allocation);
 
-		width = child_requisition.width;
-		list = first_button->prev;
-		while (list && !reached_end) {
-	  		child = BUTTON_DATA (list->data)->button;
-			gtk_widget_size_request(child, &child_requisition);
-	  		if (width + child_requisition.width + slider_space > allocation->width) {
-	    		reached_end = TRUE;
-	  		} else {
-				width += child_requisition.width;
-			}
-
-	  		list = list->prev;
-		}
-
-		/* Finally, we walk up, seeing how many of the previous buttons we can add*/
-
-		while (first_button->next && ! reached_end) {
-			child = BUTTON_DATA (first_button->next->data)->button;
-			gtk_widget_size_request(child, &child_requisition);
-	  		if (width + child_requisition.width + slider_space > allocation->width) {
-      			reached_end = TRUE;
-    		} else {
-      			width += child_requisition.width;
-      			first_button = first_button->next;
-    		}
-		}
+      if (direction == GTK_TEXT_DIR_RTL)
+	{
+	  child_allocation.x -= path_bar->priv->spacing;
+	  down_slider_offset = child_allocation.x - widget->allocation.x - path_bar->priv->slider_width;
+	  down_slider_offset = border_width;
 	}
-	/* Now, we allocate space to the buttons */
-	child_allocation.y = allocation->y;
-	child_allocation.height = allocation->height;
-
-	if (direction == GTK_TEXT_DIR_RTL) {
-		child_allocation.x = allocation->x + allocation->width;
-		if (need_sliders) {
-			child_allocation.x -= path_bar->priv->slider_width;
-			up_slider_offset = allocation->width - path_bar->priv->slider_width;
-		}
-	} else {
-		child_allocation.x = allocation->x;
-		if (need_sliders) {
-			up_slider_offset = 0;
-			child_allocation.x += path_bar->priv->slider_width;
-		}
-     }
-
-	/* Determine the largest possible allocation size */
-	largest_width = allocation->width;
-	if (need_sliders) {
-		largest_width -= (path_bar->priv->slider_width) * 2;
+      else
+	{
+	  down_slider_offset = child_allocation.x - widget->allocation.x;
+	  down_slider_offset = allocation->width - border_width - path_bar->priv->slider_width;
+	  child_allocation.x += child_allocation.width + path_bar->priv->spacing;
 	}
+    }
+  /* Now we go hide all the widgets that don't fit */
+  while (list)
+    {
+      gtk_widget_set_child_visible (BUTTON_DATA (list->data)->button, FALSE);
+      list = list->prev;
+    }
+  for (list = first_button->next; list; list = list->next)
+    {
+      gtk_widget_set_child_visible (BUTTON_DATA (list->data)->button, FALSE);
+    }
 
-	for (list = first_button; list; list = list->prev) {
-		child = BUTTON_DATA (list->data)->button;
-		gtk_widget_size_request(child, &child_requisition);
-		child_allocation.width = MIN (child_requisition.width, largest_width);
-		if (direction == GTK_TEXT_DIR_RTL) {
-			child_allocation.x -= child_allocation.width;
-		}
-		/* Check to see if we've don't have any more space to allocate buttons */
-		if (need_sliders && direction == GTK_TEXT_DIR_RTL) {
-			if (child_allocation.x - path_bar->priv->slider_width < allocation->x) {
-				break;
-			}
-		} else {
-			if (need_sliders && direction == GTK_TEXT_DIR_LTR) {
-	  			if (child_allocation.x + child_allocation.width + path_bar->priv->slider_width > allocation->x + allocation->width) {
-	    			break;	
-				}	
-			}
-		}
+  if (need_sliders)
+    {
+      child_allocation.width = path_bar->priv->slider_width;
+      child_allocation.x = up_slider_offset + allocation->x;
+      gtk_widget_size_allocate (path_bar->priv->up_slider_button, &child_allocation);
 
-		needs_reorder |= gtk_widget_get_child_visible (child) == FALSE;
-		gtk_widget_set_child_visible (child, TRUE);
-		gtk_widget_size_allocate (child, &child_allocation);
+      gtk_widget_set_child_visible (path_bar->priv->up_slider_button, TRUE);
+      gtk_widget_show_all (path_bar->priv->up_slider_button);
+    }
+  else
+    gtk_widget_set_child_visible (path_bar->priv->up_slider_button, FALSE);
 
-		if (direction == GTK_TEXT_DIR_RTL) {
-	  		down_slider_offset = child_allocation.x - allocation->x - path_bar->priv->slider_width;
-		} else {
-	  		down_slider_offset += child_allocation.width;
-	  		child_allocation.x += child_allocation.width;
-		}
-	}
-	/* Now we go hide all the widgets that don't fit */
-	while (list) {
-		child = BUTTON_DATA (list->data)->button;
-		needs_reorder |= gtk_widget_get_child_visible (child) == TRUE;
-		gtk_widget_set_child_visible (child, FALSE);
-		list = list->prev;
-	}
-	for (list = first_button->next; list; list = list->next) {
-		child = BUTTON_DATA (list->data)->button;
-		needs_reorder |= gtk_widget_get_child_visible (child) == TRUE;
-		gtk_widget_set_child_visible (child, FALSE);
-	}
-	if (need_sliders) {
-		child_allocation.width = path_bar->priv->slider_width;
-		child_allocation.x = up_slider_offset + allocation->x;
-		gtk_widget_size_allocate (path_bar->priv->up_slider_button, &child_allocation);
+  if (need_sliders)
+    {
+      child_allocation.width = path_bar->priv->slider_width;
+      child_allocation.x = down_slider_offset + allocation->x;
+      gtk_widget_size_allocate (path_bar->priv->down_slider_button, &child_allocation);
 
-		needs_reorder |= gtk_widget_get_child_visible (path_bar->priv->up_slider_button) == FALSE;
-		gtk_widget_set_child_visible (path_bar->priv->up_slider_button, TRUE);
-		gtk_widget_show_all (path_bar->priv->up_slider_button);
-
-		if (direction == GTK_TEXT_DIR_LTR) {
-			down_slider_offset += path_bar->priv->slider_width;
-		}
-	} else {
-		needs_reorder |= gtk_widget_get_child_visible (path_bar->priv->up_slider_button) == TRUE;
-		gtk_widget_set_child_visible (path_bar->priv->up_slider_button, FALSE);
-	}
-	
-	if (need_sliders) {
-		child_allocation.width = path_bar->priv->slider_width;
-		child_allocation.x = down_slider_offset + allocation->x;
-		gtk_widget_size_allocate (path_bar->priv->down_slider_button, &child_allocation);
-
-		needs_reorder |= gtk_widget_get_child_visible (path_bar->priv->down_slider_button) == FALSE;
-      	gtk_widget_set_child_visible (path_bar->priv->down_slider_button, TRUE);
-      	gtk_widget_show_all (path_bar->priv->down_slider_button);
-      	xml_breadcrumbs_update_slider_buttons (path_bar);
-    } else {
-		needs_reorder |= gtk_widget_get_child_visible (path_bar->priv->down_slider_button) == TRUE;
-    	gtk_widget_set_child_visible (path_bar->priv->down_slider_button, FALSE);
-	}
-
-	if (needs_reorder) {
-		child_ordering_changed (path_bar);
-	}
+      gtk_widget_set_child_visible (path_bar->priv->down_slider_button, TRUE);
+      gtk_widget_show_all (path_bar->priv->down_slider_button);
+      xml_breadcrumbs_update_slider_buttons (path_bar);
+    }
+  else
+    gtk_widget_set_child_visible (path_bar->priv->down_slider_button, FALSE);
 }
 
 static void
-xml_breadcrumbs_style_updated (GtkWidget *widget)
+xml_breadcrumbs_style_set (GtkWidget *widget)
 {
 	//GTK_WIDGET_CLASS (xml_breadcrumbs_parent_class)->style_updated (widget);
 
@@ -767,60 +758,40 @@ xml_breadcrumbs_get_path_for_child ( GtkContainer *container,
 */
 
 static void
-xml_breadcrumbs_size_request(GtkWidget *widget,
-    GtkRequisition *requisition)
+xml_breadcrumbs_size_request (	GtkWidget *widget,
+								GtkRequisition *requisition)
 {
-	g_return_if_fail(widget != NULL);
-	g_return_if_fail(XML_IS_BREADCRUMBS(widget));
-	g_return_if_fail(requisition != NULL);
-
-	GtkRequisition child_requisition;
-
 	ButtonData *button_data;
 	XmlBreadcrumbs *path_bar;
 	GList *list;
-	gint child_height;
-	gint height;
-	gint child_min, child_nat;
+	GtkRequisition child_requisition;
 
 	path_bar = XML_BREADCRUMBS (widget);
 
-	gint minimum = 0;
-	gint natural = 0;
-	height = 0;
+	requisition->width = 0;
+	requisition->height = 0;
 
-	for (list = path_bar->priv->button_list; list; list = list->next) {
+	for (list = path_bar->priv->button_list; list; list = list->next)
+    {
 		button_data = BUTTON_DATA (list->data);
-		//set_label_size_request (button_data);
+		gtk_widget_size_request (button_data->button, &child_requisition);
+		requisition->width = MAX (child_requisition.width, requisition->width);
+		requisition->height = MAX (child_requisition.height, requisition->height);
+    }
 
-		gtk_widget_size_request(button_data->button, &child_requisition);
+	path_bar->priv->slider_width = MIN(requisition->height * 2 / 3 + 5, requisition->height);
 
-		height = MAX (height, child_requisition.height);
+	if (path_bar->priv->button_list && path_bar->priv->button_list->next != NULL)
+		requisition->width += (path_bar->priv->spacing + path_bar->priv->slider_width) * 2;
 
-		/* Use 2*Height as button width because of ellipsized label.  */
-		child_min = MAX (child_requisition.width, child_requisition.height * 2);
-		child_nat = MAX (child_min, child_requisition.height * 2);
+	gtk_widget_size_request (path_bar->priv->up_slider_button, &child_requisition);
+	gtk_widget_size_request (path_bar->priv->down_slider_button, &child_requisition);
 
-		minimum = MAX (minimum, child_min);
-		natural = MAX (natural, child_nat);
-	}
+	requisition->width += GTK_CONTAINER (widget)->border_width * 2;
+	requisition->height += GTK_CONTAINER (widget)->border_width * 2;
 
-	/* Add space for slider, if we have more than one path */
-	/* Theoretically, the slider could be bigger than the other button.  But we're
-	 * not going to worry about that now.
-	 */
-	path_bar->priv->slider_width = MIN (height * 2 / 3 + 5, height);
-
-	if (path_bar->priv->button_list && path_bar->priv->button_list->next != NULL) {
-		minimum += (path_bar->priv->slider_width) * 2;
-		natural += (path_bar->priv->slider_width) * 2;
-	}
-
-
-	requisition->width = XML_BREADCRUMBS_BUTTON_MAX_WIDTH; //natural;
-	requisition->height = 28;
+	widget->requisition = *requisition;
 }
-
 
 static void
 xml_breadcrumbs_class_init (XmlBreadcrumbsClass *path_bar_class)
@@ -836,30 +807,22 @@ xml_breadcrumbs_class_init (XmlBreadcrumbsClass *path_bar_class)
 	gobject_class->finalize = xml_breadcrumbs_finalize;
 	gobject_class->dispose = xml_breadcrumbs_dispose;
 
-	//widget_class->get_preferred_height = xml_breadcrumbs_get_preferred_height;
-	//widget_class->get_preferred_width = xml_breadcrumbs_get_preferred_width;
-	
 	widget_class->size_request = xml_breadcrumbs_size_request;
-	
-	/*
-	widget_class->expose_event = xml_breadcrumbs_expose;
-	*/
-
-	widget_class->realize = xml_breadcrumbs_realize;
-	widget_class->unrealize = xml_breadcrumbs_unrealize;
 	widget_class->unmap = xml_breadcrumbs_unmap;
-	widget_class->map = xml_breadcrumbs_map;
     widget_class->size_allocate = xml_breadcrumbs_size_allocate;
-    // widget_class->style_updated = xml_breadcrumbs_style_updated;
+    widget_class->style_set = xml_breadcrumbs_style_set;
     widget_class->screen_changed = xml_breadcrumbs_screen_changed;
     widget_class->grab_notify = xml_breadcrumbs_grab_notify;
     widget_class->state_changed = xml_breadcrumbs_state_changed;
+	
+	widget_class->realize = xml_breadcrumbs_realize;
+	widget_class->unrealize = xml_breadcrumbs_unrealize;
 	widget_class->scroll_event = xml_breadcrumbs_scroll;
+	widget_class->map = xml_breadcrumbs_map;
 
     container_class->add = xml_breadcrumbs_add;
     container_class->forall = xml_breadcrumbs_forall;
     container_class->remove = xml_breadcrumbs_remove;
-	//container_class->get_path_for_child = xml_breadcrumbs_get_path_for_child;
 
 	xml_breadcrumb_signals [BREADCRUMB_PATH_CLICKED] =	g_signal_new ("xml-breadcrumb-path-clicked",
 													  G_OBJECT_CLASS_TYPE (path_bar_class),
@@ -878,7 +841,6 @@ xml_breadcrumbs_class_init (XmlBreadcrumbsClass *path_bar_class)
 													  G_TYPE_FILE,
 													  GDK_TYPE_EVENT);
 
-	 //gtk_container_class_handle_border_width (container_class);
 	 g_type_class_add_private (path_bar_class, sizeof (XmlBreadcrumbsDetails));
 }
 

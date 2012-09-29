@@ -302,13 +302,28 @@ xml_navigator_button_press_event(	GtkWidget *widget,
 									GdkEventButton *event,
 									XmlNavigator *ttt)
 {
+
+	GtkTreeSelection *selection;
+	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(widget));
+
+	/*
+	if (event->type == GDK_BUTTON_PRESS && event->button == 1) {
+	
+		GtkTreePath *path;
+		GtkTreeIter	*iter;
+		gtk_tree_selection_get_selected(selection, ttt->model, &iter);
+		path = gtk_tree_model_get_path(ttt->model, &iter );
+		xml_breadcrumbs_set_path_from_path (ttt->breadcrumbs, path);
+		g_signal_emit(ttt, xml_navigator_signals[ROW_ACTIVATED_SIGNAL],0,selection);
+		return TRUE;
+	}
+	*/
+	
 	/* single click with the right mouse button */
-	if (event->type == GDK_BUTTON_PRESS  &&  event->button == 3) {
-		GtkTreeSelection *selection;
-		selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(ttt->navigator));
+	if (event->type == GDK_BUTTON_PRESS && event->button == 3) {
 		if (gtk_tree_selection_count_selected_rows(selection)  == 1) {
-			xml_view_popup_menu(ttt->navigator, event, ttt);
-			g_signal_emit(ttt, xml_navigator_signals[BUTTON_PRESS_EVENT],0,event);
+			xml_view_popup_menu(widget, event, ttt);
+			g_signal_emit(ttt, xml_navigator_signals[BUTTON_PRESS_EVENT],0);
 			return TRUE; 
 		}
 	}
@@ -325,6 +340,7 @@ xml_navigator_row_activated(GtkTreeView	*tree_view,
 	gboolean return_value = FALSE;
 	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree_view));
 
+	//xml_breadcrumbs_set_path_from_path (ttt->breadcrumbs, path);
 	g_signal_emit(ttt, xml_navigator_signals[ROW_ACTIVATED_SIGNAL],0,selection, &return_value);
 	return return_value;
 }

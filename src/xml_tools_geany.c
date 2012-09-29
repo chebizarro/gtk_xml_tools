@@ -37,23 +37,14 @@
 
 typedef struct _xmlTools			xmlTools;
 
-/*
-struct _xmlTools
-{
-	xmlTreeModel	*model;
-	XmlNavigator	*navigator;
-	XpathExplorer	*explorer;
-	xsltTransformer	*transformer;
-};
-*/
+
 
 struct _xmlTools
 {
+	xmlTreeModel	*model;
 	XmlNavigator	*navigator;
 	XpathExplorer	*explorer;
 	xsltTransformer	*transformer;
-	/* Widgets after this point will not be displayed */
-	xmlTreeModel	*model;
 };
 
 
@@ -64,18 +55,17 @@ enum {
 	XTOOLS_COUNT
 };
 
-static GHashTable	* xtools;
-static xmlTools	* tools_blank;
-static gint		xtools_pages[XTOOLS_COUNT];
+static GHashTable	*xtools;
+static xmlTools		*tools_blank;
+static gint			xtools_pages[XTOOLS_COUNT];
 static GtkWidget	*xtools_geany_pages[XTOOLS_COUNT];
-static GtkWidget	*xtools_views_blank[XTOOLS_COUNT];
 static GtkWidget	*xtools_views[XTOOLS_COUNT];
 
 /* Check plugin version */
 PLUGIN_VERSION_CHECK(GEANY_API_VERSION)
 
 /* Set plugin info */
-PLUGIN_SET_INFO(_("XML/XSLT Tools"), _("Adds XML/XSLT Tools to Geany."),
+PLUGIN_SET_INFO(_("XML Tools"), _("Adds XML Tools to Geany."),
 	"0.1.alpha","Chris Daley")	
 
 /* Geany plugin variables */
@@ -84,283 +74,34 @@ GeanyData		*geany_data;
 GeanyFunctions	*geany_functions;
 
 
-static gboolean change_focus_to_editor(GeanyDocument *doc);
+static gboolean	change_focus_to_editor(GeanyDocument *doc);
 
-static gboolean on_document_new (	G_GNUC_UNUSED GObject *object,
-									GeanyDocument 	* doc,
-									xmlTreeModel 	* xmlmodel);
-static on_xml_error (	xmlTreeModel * xmltreemodel,
-						xmlErrorPtr error,
-						XmlNavigator * ttt);
+static gboolean on_document_new (G_GNUC_UNUSED GObject *object,
+								 GeanyDocument 	* doc,
+								 xmlTreeModel 	* xmlmodel);
 
-static	on_xsl_error (	xmlTreeModel * xmltreemodel,
-				xslErrorMessage * error,
-				XmlNavigator * ttt);
+static void 	on_xml_error	(xmlTreeModel * xmltreemodel,
+								 xmlErrorPtr error,
+								 XmlNavigator * ttt);
 
-static xmlTools * xtools_new( GeanyDocument *doc);
+static	void 	on_xsl_error	(xmlTreeModel * xmltreemodel,
+								 xslErrorMessage * error,
+								 XmlNavigator * ttt);
 
+static xmlTools *xtools_new		(GeanyDocument *doc);
 
-void plugin_help(void) {
- //TODO
-}
+static gboolean	on_navigator_activated		(GtkWidget *widget,
+											 GtkTreeSelection *selection);
 
-static void
-on_xslt_add_file(GtkWidget * menuitem, xsltTransformer * ttt)
-{
-	XmlNavigator	* model;
-	GeanyDocument	* doc;
-	
-	doc = document_find_by_filename(gtk_menu_item_get_label(menuitem));
-	
-	//model = g_hash_table_lookup(views, doc);
-	
-	if(model != NULL)
-		xslt_transformer_set_stylesheet(ttt, model->model);
-}
+static gboolean	on_xpath_show_in_navigator	(XpathExplorer *widget,
+											 gchar		  *xpath,
+											 XmlNavigator  *navigator);
+											
+static void		on_xsl_menu_activated		(xsltTransformer *ttt,
+											 GtkWidget	 	*menu);
 
-static void
-on_xsl_menu_activated (	xsltTransformer 	* ttt,
-						GtkWidget	 	* menu)
-{
-	GtkWidget 		*file_menu, *open_item;
-	GeanyDocument	*doc;
-	gint i;
-
-	doc = document_get_current();
-	file_menu = gtk_menu_new();
-	for (i = 0; i < GEANY(documents_array)->len; i++) {
-		if(documents[i]->is_valid && documents[i] != doc){
-			if(documents[i]->file_type->id == GEANY_FILETYPES_XML) {
-				//open_item = gtk_menu_item_new_with_label(document_get_basename_for_display(documents[i],-1));
-				open_item = gtk_menu_item_new_with_label(documents[i]->real_path);
-				g_signal_connect(open_item, "activate", G_CALLBACK(on_xslt_add_file), ttt);
-				gtk_menu_shell_append(GTK_MENU_SHELL(menu), open_item);
-				gtk_widget_show (open_item);
-			}
-		}
-	}
-}
-
-static gboolean change_focus_to_editor(GeanyDocument *doc)
-{
-	if (DOC_VALID(doc))
-	{
-		gtk_window_get_focus(GTK_WINDOW(geany->main_widgets->window));
-		GtkWidget *sci = GTK_WIDGET(doc->editor->sci);
-		gtk_widget_grab_focus(sci);
-	}
-	return FALSE;
-}
-
-static gboolean
-on_xpath_show_in_navigator (XpathExplorer *widget,
-							gchar		  *xpath,
-							XmlNavigator  *navigator)
-{
-	xml_navigator_goto_xpath(navigator, xpath);
-	return TRUE;
-}
-
-static gboolean
-on_navigator_activated(	GtkWidget *widget,
-						GtkTreeSelection *selection)
-{
-	GtkTreeIter iter;
-	GtkTreeModel *model;
-	gint line = 0;
-	gint pos = 0;
-
-	if (gtk_tree_selection_get_selected(selection, &model, &iter))
-	{
-		gtk_tree_model_get(	model, &iter,
-							XML_TREE_MODEL_COL_LINE, &line,
-							XML_TREE_MODEL_COL_POS, &pos,
-							-1);
-		if (line > 0)
-		{
-			GeanyDocument *doc;
-			doc = document_get_current();
-			//scintilla_send_message(doc->editor->sci, SCI_GOTOPOS, &pos, NULL);
-			navqueue_goto_line(doc, doc, line);
-			//editor_goto_pos(doc->editor, pos, FALSE);
-			change_focus_to_editor(doc);
-		}
-	}
-	return FALSE;
-}
-
-static void
-on_document_filetype_set (	GObject *obj,
-							GeanyDocument *doc,
-							GeanyFiletype *filetype_old,
-							gpointer user_data )
-{
-	XmlNavigator	* nav;
-	xmlTreeModel	* model;
-
-	if(doc == NULL)
-		return;
-
-	if(doc->file_type->id == GEANY_FILETYPES_XML) {
-		model = xml_tree_model_new();
-		xml_tree_model_add_file(model, doc->real_path);
-		//nav = g_hash_table_lookup(views, doc);
-		xml_navigator_set_model(nav, model);
-	} else {
-		//nav = navigator_blank;
-	}
-	
-	if(doc == document_get_current()) {
-		//g_object_ref(navigator);
-		//gtk_container_remove(navbox, navigator);
-		//navigator = nav;
-		//gtk_box_pack_start(navbox, navigator, TRUE, TRUE, 0);
-		//gtk_widget_show_all(GTK_WIDGET(navigator));
-	}
-
-}
-
-static void
-on_xsl_transform (	xsltTransformer 	* ttt,
-					GtkWidget	 	* button)
-{
-	GeanyDocument* gresult;
-	gint byteswritten;
-	
-	if(ttt->result == NULL)
-		return;
-	
-	gchar template[] = "/tmp/xml_transformation_XXXXXX";
-	gint file;
-	file = g_mkstemp(template);
-	
-	if(file < 0)
-		return;
-
-	byteswritten = xml_tree_model_write_to_file(ttt->result, file, 1);
-
-	if( byteswritten > 0) {
-		gresult = document_open_file(template, TRUE, NULL, NULL);
-	}
-
-	close(file);
-}
-
-static gboolean on_editor_button_press_event(GtkWidget *widget,
-											 GdkEventButton *event,
-											 GeanyDocument *doc)
-{
-	GeanyEditor * editor = doc->editor;
-	int foldline = 0;
-
-	if (event->button == 1)
-	{
-		foldline = sci_get_style_at(editor->sci,sci_get_current_position(editor->sci));
-		msgwin_msg_add(COLOR_BLUE,0,NULL,"Style: %d at Position %d", foldline, sci_get_current_position(editor->sci));
-
-	}
-
-	return FALSE;
-
-}
-
-
-static gboolean
-on_document_new(G_GNUC_UNUSED GObject *object,
-				GeanyDocument 	* doc,
-				xmlTreeModel 	* xmlmodel)
-{
-	//g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_editor_button_press_event), doc);
-
-	return FALSE;
-}
-
-
-static void
-on_document_save (	G_GNUC_UNUSED GObject *object,
-					GeanyDocument *doc,
-					gpointer data)
-{
-
-	xmlTools *tools;
-
-	if(doc->file_type->id == GEANY_FILETYPES_XML) {
-		tools = g_hash_table_lookup(xtools, doc);
-	
-		if(tools == NULL) {
-			tools = xtools_new(doc);
-			g_hash_table_insert(xtools, doc, tools);
-		} else {
-			xml_tree_model_reload(tools->model);
-		}
-	} else {
-		tools = tools_blank;
-	}
-	
-}
-
-static
-on_xsl_error (	xmlTreeModel * xmltreemodel,
-				xslErrorMessage * error,
-				XmlNavigator * ttt)
-{
-	int error_colour;
-	GeanyDocument * doc;
-   
-	doc = document_find_by_real_path(error->file);
-
-	//msgwin_switch_tab(MSG_MESSAGE, TRUE);
-	
-	if(error->file == NULL && error->line < 1 && error->element == NULL) {
-		msgwin_msg_add(	COLOR_DARK_RED, NULL, doc,	"XSL: %s", error->error );
-	} else {
-		msgwin_msg_add(	COLOR_DARK_RED, error->line, doc,
-					"XSL: %s: %s - %s line: %i",
-					error->error, error->file, error->element, error->line );
-	}
-}
-
-static
-on_xml_error (	xmlTreeModel * xmltreemodel,
-				xmlErrorPtr error,
-				XmlNavigator * ttt)
-{
-	int error_colour;
-	GeanyDocument * doc;
-	gchar * errorlevel;
-	
-	switch(error->level)
-	{
-		case XML_ERR_NONE:
-			error_colour = COLOR_BLACK;
-			errorlevel = _("no error");
-			break;
-		case XML_ERR_WARNING:
-			error_colour = COLOR_BLUE;
-			errorlevel = _("warning");
-			break;
-		case XML_ERR_ERROR:
-			error_colour = COLOR_DARK_RED;
-			errorlevel = _("error");
-			break;
-		case XML_ERR_FATAL:
-			error_colour = COLOR_RED;
-			errorlevel = _("fatal error");
-			break;
-		default:
-			error_colour = COLOR_BLACK;
-			errorlevel = _("message");
-			break;
-    }
-    
-    
-	doc = document_find_by_real_path(error->file);
-
-	//msgwin_switch_tab(MSG_MESSAGE, TRUE);
-	msgwin_msg_add(	error_colour, error->line, doc,
-					"XML: %s: %s - %s Line: %i, Column : %i",
-					errorlevel, error->file, error->message, error->line, error->int2 );
-}
+static void		on_xsl_transform	(	xsltTransformer 	* ttt,
+										GtkWidget	 	* button);
 
 
 
@@ -407,7 +148,6 @@ xtools_new_blank()
 	gtk_widget_set_sensitive(tools->navigator, FALSE);
 	
 	tools->explorer = xpath_explorer_new();
-	//xpath_explorer_set_model(tools->explorer, NULL);
 	gtk_widget_set_name(tools->explorer, "XPath Explorer");
 	gtk_widget_set_sensitive(tools->explorer, FALSE);
 	
@@ -418,7 +158,6 @@ xtools_new_blank()
 	tools->model = NULL;
 
 	return tools;
-
 }
 
 static void
@@ -448,6 +187,223 @@ xtools_show(xmlTools * tools) {
 	
 }
 
+void xtools_destroy (xmlTools * tool) {
+	gtk_widget_destroy(tool->navigator);
+	gtk_widget_destroy(tool->explorer);
+	gtk_widget_destroy(tool->transformer);
+	gtk_widget_destroy(tool->model);
+	g_free(tool);
+}
+
+
+
+
+static void
+on_xslt_add_file(GtkWidget * menuitem, xsltTransformer * ttt)
+{
+	GeanyDocument	*doc;
+	xmlTools		*model;
+
+	doc = document_find_by_filename(gtk_menu_item_get_label(menuitem));
+	model = g_hash_table_lookup(xtools, doc);
+	g_return_if_fail(model != NULL);
+	xslt_transformer_set_stylesheet(ttt, model->model);
+}
+
+static void
+on_xsl_menu_activated (	xsltTransformer *ttt,
+						GtkWidget	 	*menu)
+{
+	GtkWidget 		*file_menu, *open_item;
+	GeanyDocument	*doc;
+	gint i;
+
+	doc = document_get_current();
+	file_menu = gtk_menu_new();
+	for (i = 0; i < GEANY(documents_array)->len; i++) {
+		if(documents[i]->is_valid && documents[i] != doc){
+			if(documents[i]->file_type->id == GEANY_FILETYPES_XML) {
+				open_item = gtk_menu_item_new_with_label(documents[i]->real_path);
+				g_signal_connect(open_item, "activate", G_CALLBACK(on_xslt_add_file), ttt);
+				gtk_menu_shell_append(GTK_MENU_SHELL(menu), open_item);
+				gtk_widget_show (open_item);
+			}
+		}
+	}
+}
+
+
+
+static gboolean change_focus_to_editor(GeanyDocument *doc)
+{
+	if (DOC_VALID(doc))
+	{
+		gtk_window_get_focus(GTK_WINDOW(geany->main_widgets->window));
+		gtk_widget_grab_focus(doc->editor->sci);
+	}
+	return FALSE;
+}
+
+static gboolean
+on_xpath_show_in_navigator (XpathExplorer *widget,
+							gchar		  *xpath,
+							XmlNavigator  *navigator)
+{
+	xml_navigator_goto_xpath(navigator, xpath);
+	return TRUE;
+}
+
+static gboolean
+on_navigator_activated(	GtkWidget *widget,
+						GtkTreeSelection *selection)
+{
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	gint line = 0;
+
+	if (gtk_tree_selection_get_selected(selection, &model, &iter))
+	{
+		gtk_tree_model_get(	model, &iter,
+							XML_TREE_MODEL_COL_LINE, &line,
+							-1);
+		if (line > 0)
+		{
+			GeanyDocument *doc;
+			doc = document_get_current();
+			navqueue_goto_line(doc, doc, line);
+			change_focus_to_editor(doc);
+		}
+	}
+	return FALSE;
+}
+
+static void
+on_document_filetype_set (	GObject *obj,
+							GeanyDocument *doc,
+							GeanyFiletype *filetype_old,
+							gpointer user_data )
+{
+
+}
+
+static void
+on_xsl_transform (	xsltTransformer 	* ttt,
+					GtkWidget	 	* button)
+{
+	GeanyDocument* gresult;
+	gint byteswritten;
+	
+	g_return_if_fail(ttt->result != NULL);
+	
+	gchar template[] = "/tmp/xml_transformation_XXXXXX";
+	gint file = g_mkstemp(template);
+	
+	g_return_if_fail(file >= 0);
+
+	byteswritten = xml_tree_model_write_to_file(ttt->result, file, 1);
+
+	close(file);
+	
+	if( byteswritten > 0) 
+		gresult = document_open_file(template, TRUE, NULL, NULL);
+
+}
+
+
+static gboolean
+on_document_new(G_GNUC_UNUSED GObject *object,
+				GeanyDocument 	* doc,
+				xmlTreeModel 	* xmlmodel)
+{
+	return FALSE;
+}
+
+
+static void
+on_document_save (	G_GNUC_UNUSED GObject *object,
+					GeanyDocument *doc,
+					gpointer data)
+{
+	xmlTools *tools;
+
+	if(doc->file_type->id == GEANY_FILETYPES_XML) {
+		tools = g_hash_table_lookup(xtools, doc);
+		if(tools == NULL) {
+			tools = xtools_new(doc);
+			g_hash_table_insert(xtools, doc, tools);
+		} else {
+			xml_tree_model_reload(tools->model);
+		}
+	} else {
+		tools = tools_blank;
+	}
+}
+
+static
+on_xsl_error (	xmlTreeModel * xmltreemodel,
+				xslErrorMessage * error,
+				XmlNavigator * ttt)
+{
+	int error_colour;
+	GeanyDocument * doc;
+   
+	doc = document_find_by_real_path(error->file);
+
+	msgwin_switch_tab(MSG_MESSAGE, TRUE);
+	
+	if(error->file == NULL && error->line < 1 && error->element == NULL) {
+		msgwin_msg_add(	COLOR_DARK_RED, NULL, doc,	"XSL: %s", error->error );
+	} else {
+		msgwin_msg_add(	COLOR_DARK_RED, error->line, doc,
+					"XSL: %s: %s - %s line: %i",
+					error->error, error->file, error->element, error->line );
+	}
+}
+
+static
+on_xml_error (	xmlTreeModel * xmltreemodel,
+				xmlErrorPtr error,
+				XmlNavigator * ttt)
+{
+	int error_colour;
+	GeanyDocument * doc;
+	gchar * errorlevel;
+	
+	switch(error->level)
+	{
+		case XML_ERR_NONE:
+			error_colour = COLOR_BLACK;
+			errorlevel = _("no error");
+			break;
+		case XML_ERR_WARNING:
+			error_colour = COLOR_BLUE;
+			errorlevel = _("warning");
+			break;
+		case XML_ERR_ERROR:
+			error_colour = COLOR_DARK_RED;
+			errorlevel = _("error");
+			break;
+		case XML_ERR_FATAL:
+			error_colour = COLOR_RED;
+			errorlevel = _("fatal error");
+			break;
+		default:
+			error_colour = COLOR_BLACK;
+			errorlevel = _("message");
+			break;
+    }
+    
+	doc = document_find_by_real_path(error->file);
+
+	msgwin_switch_tab(MSG_MESSAGE, TRUE);
+	msgwin_msg_add(	error_colour, error->line, doc,
+					"XML: %s: %s - %s Line: %i, Column : %i",
+					errorlevel, error->file, error->message, error->line, error->int2 );
+}
+
+
+
+
 static gboolean
 on_document_activate(	G_GNUC_UNUSED GObject *object,
 						GeanyDocument *doc,
@@ -461,7 +417,6 @@ on_document_activate(	G_GNUC_UNUSED GObject *object,
 		if(tools == NULL) {
 			tools = xtools_new(doc);
 			g_hash_table_insert(xtools, doc, tools);
-			//g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_editor_button_press_event), doc);
 		}
 	} else {
 		tools = tools_blank;
@@ -493,50 +448,12 @@ static void on_document_close(G_GNUC_UNUSED GObject *object,
 }
 
 
-
-static void
-message_logger (const gchar *log_domain,
-                GLogLevelFlags log_level,
-                const gchar *message,
-                gpointer user_data)
-{
-	int error_colour;
-
-	//msgwin_clear_tab(MSG_MESSAGE);
-	msgwin_switch_tab(MSG_MESSAGE, TRUE);
-		
-	switch(log_level)
-	{
-		case G_LOG_LEVEL_WARNING:
-			error_colour = COLOR_RED;
-			break;
-		case G_LOG_LEVEL_MESSAGE:
-			error_colour = COLOR_BLUE;
-			break;
-		default:
-			error_colour = COLOR_BLUE;
-			break;
-	}
-	
-	msgwin_msg_add(error_colour,0,NULL,message);
-
-}
-
-void xtools_destroy (xmlTools * tool) {
-	gtk_widget_destroy(tool->navigator);
-	gtk_widget_destroy(tool->explorer);
-	gtk_widget_destroy(tool->transformer);
-	gtk_widget_destroy(tool->model);
-	g_free(tool);
-}
-
 static gboolean
 on_editor_notify (	GObject *obj,
 					GeanyEditor *editor,
 					SCNotification *nt,
 					gpointer user_data)
 {
-	ScintillaObject *sci;
 	GeanyDocument	*doc;
 	xmlTools *tools;
 	gint column;
@@ -546,9 +463,7 @@ on_editor_notify (	GObject *obj,
 	if( nt->nmhdr.code == SCN_UPDATEUI &&
 		doc->file_type->id == GEANY_FILETYPES_XML)
 	{
-		//msgwin_clear_tab(MSG_MESSAGE);
-		
-			
+		/*	
 		if((nt->updated & SC_UPDATE_SELECTION) == SC_UPDATE_SELECTION)
 			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_SELECTION %d", nt->updated);
 
@@ -561,7 +476,6 @@ on_editor_notify (	GObject *obj,
 		if((nt->updated & (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL | SC_UPDATE_H_SCROLL)) == (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL | SC_UPDATE_H_SCROLL))
 			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL | SC_UPDATE_H_SCROLL %d", nt->updated);
 
-
 		if((nt->updated & (SC_UPDATE_CONTENT)) == SC_UPDATE_CONTENT)
 			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_CONTENT %d", nt->updated);
 
@@ -573,7 +487,6 @@ on_editor_notify (	GObject *obj,
 		
 		if((nt->updated & (SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL)) == (SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL))
 			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL | SC_UPDATE_H_SCROLL %d", nt->updated);
-
 			
 		if((nt->updated & SC_UPDATE_V_SCROLL) == SC_UPDATE_V_SCROLL)
 			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_V_SCROLL %d", nt->updated);
@@ -583,30 +496,21 @@ on_editor_notify (	GObject *obj,
 		
 		if((nt->updated & (SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL)) == (SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL))
 			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL %d", nt->updated);
-
-
-
-		sci = editor->sci;
-		tools = g_hash_table_lookup(xtools, doc);
-
-		g_return_val_if_fail(tools != NULL, FALSE);
-		
-		column = sci_get_current_position(sci);
+		*/
 
 		if(nt->updated == SC_UPDATE_SELECTION) {
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"ONLY SC_UPDATE_SELECTION %d", nt->updated);
+			tools = g_hash_table_lookup(xtools, doc);
+			g_return_val_if_fail(tools != NULL, FALSE);
+			column = sci_get_current_position(editor->sci);
+			//msgwin_msg_add(COLOR_BLUE,0,NULL,"Position %d", column);
 			xml_breadcrumbs_set_path_from_position(tools->navigator->breadcrumbs, column);
 			xml_navigator_goto_file_location(tools->navigator, column);
 		}
 	}
-	
-//	DBL CLICK NAV	SC_UPDATE_SELECTION | SC_UPDATE_CONTENT 3
-//			SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL 7
-// SNGL CLICK ED SC_UPDATE_SELECTION 2
-	
 	return FALSE;
-
 }
+
+/* Plugin functions */
 
 /* Plugin initialisation */
 void
@@ -633,7 +537,6 @@ plugin_init(GeanyData *data)
 
 
 	for(i = 0; i < XTOOLS_COUNT; ++i) {
-		//panel = *tools_blank;
 		xtools_views[i] = gtk_vbox_new(FALSE,0);
 		gtk_box_pack_start(xtools_views[i], panel[i], TRUE, TRUE, 0);
 		gtk_widget_show_all(GTK_WIDGET(xtools_views[i]));
@@ -660,34 +563,24 @@ plugin_init(GeanyData *data)
 	plugin_signal_connect(geany_plugin, NULL, "document-new", TRUE,
 		(GCallback)&on_document_new, NULL);
 
-
-/*
-	plugin_signal_connect(geany_plugin, NULL, "document-filetype-set", TRUE,
+/*	plugin_signal_connect(geany_plugin, NULL, "document-filetype-set", TRUE,
 		(GCallback)&on_document_filetype_set, NULL);
-
-
- 
 	plugin_signal_connect(geany_plugin, NULL, "document-reload", TRUE,
 		(GCallback)&on_document_close, NULL);
-
 */
 	plugin_module_make_resident(geany_plugin);
 }
 
-/* Plugin cleanup */
 void plugin_cleanup(void)
 {
 	gint i;
-	
 	msgwin_clear_tab(MSG_MESSAGE);
 
 	for(i = 0; i < XTOOLS_COUNT; ++i) {
 		gtk_notebook_remove_page(GTK_NOTEBOOK(xtools_geany_pages[i]),xtools_pages[i]);
 	}
-
 	xtools_destroy(tools_blank);
 	g_hash_table_destroy(xtools);
-	
 }
 
 GtkWidget *plugin_configure(GtkDialog *dialog)
@@ -698,4 +591,8 @@ GtkWidget *plugin_configure(GtkDialog *dialog)
 	gtk_box_pack_start(GTK_BOX(vbox), show_toolbar, FALSE, FALSE, 3);
 	
 	return vbox;
+}
+
+void plugin_help(void) {
+ //TODO
 }
