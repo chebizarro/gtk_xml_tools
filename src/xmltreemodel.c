@@ -1271,22 +1271,18 @@ xml_tree_model_is_stylesheet (xmlTreeModel *ttt)
 }
 
 
-GtkTreePath *
-xml_tree_model_get_path_from_position(xmlTreeModel *ttt, gint position){
 
-	g_return_val_if_fail(ttt != NULL, NULL);
-
+xmlNodePtr
+xml_tree_model_get_node_from_position (xmlTreeModel *ttt,
+										gint position)
+{
 	xmlParserNodeInfoPtr nodeinfo, nodeswap; 
-	GtkTreeIter	iter;
-	GtkTreePath	*treepath;
 	gint		column;
 	
 	column = position;
 	
 	if(xmlStrEqual(ttt->parser->input->encoding, "ISO-8859-1") == 1)
 		column -= 41;
-
-	iter.stamp = ttt->stamp;
 	
 	/* Do a binary search for the key */
     gint lower = 1;
@@ -1321,10 +1317,33 @@ xml_tree_model_get_path_from_position(xmlTreeModel *ttt, gint position){
         }
     }
 	
-	g_return_val_if_fail(nodeinfo != NULL, NULL);
-	
-	iter.user_data = nodeinfo->node;
+	g_return_val_if_fail(nodeinfo != NULL, NULL);	
 
+	return nodeinfo;
+}
+
+gchar *
+xml_tree_model_get_xpath_from_position (xmlTreeModel *ttt,
+										gint position)
+{
+	xmlNodePtr node;
+	node = xml_tree_model_get_node_from_position(ttt, position);
+	g_return_val_if_fail(node != NULL, NULL);
+	return (gchar *)xmlGetNodePath(node);
+}
+
+GtkTreePath *
+xml_tree_model_get_path_from_position(xmlTreeModel *ttt, gint position){
+	xmlNodePtr node;
+	GtkTreeIter	iter;
+	GtkTreePath	*treepath;
+
+	g_return_val_if_fail(ttt != NULL, NULL);
+
+	node = xml_tree_model_get_node_from_position(ttt, position);
+
+	iter.stamp = ttt->stamp;
+	iter.user_data = node;
 	treepath = xml_tree_model_get_path(ttt, &iter);
 
 	return treepath;

@@ -135,6 +135,8 @@ xtools_new( GeanyDocument *doc) {
 	g_signal_connect(tools->navigator, "xslt-transformer-menu-activated", G_CALLBACK(on_xsl_menu_activated), NULL);
 	g_signal_connect(tools->navigator, "xslt-transformer-model-transformed", G_CALLBACK(on_xsl_transform), NULL);
 
+	scintilla_send_message(doc->editor->sci, SCI_SETMOUSEDWELLTIME, 5000, NULL);
+
 	return tools;
 }
 
@@ -152,7 +154,7 @@ xtools_new_blank()
 	gtk_widget_set_sensitive(tools->explorer, FALSE);
 	
 	tools->transformer = xslt_transformer_new();
-	gtk_widget_set_name(tools->transformer, "XSLT Transformer");
+	gtk_widget_set_name(tools->transformer, "XSL Transformer");
 	gtk_widget_set_sensitive(tools->transformer, FALSE);
 
 	tools->model = NULL;
@@ -506,6 +508,15 @@ on_editor_notify (	GObject *obj,
 			xml_breadcrumbs_set_path_from_position(tools->navigator->breadcrumbs, column);
 			xml_navigator_goto_file_location(tools->navigator, column);
 		}
+		
+		if(nt->position == SCN_DWELLSTART) {
+			gchar *tooltip;
+			column = sci_get_current_position(editor->sci);
+			scintilla_send_message(doc->editor->sci, SCI_CALLTIPSHOW, &column, tooltip);
+			g_free(tooltip);
+		}
+		
+		
 	}
 	return FALSE;
 }

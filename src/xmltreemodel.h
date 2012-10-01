@@ -128,5 +128,6 @@ GtkTreePath * xml_tree_model_get_path_from_xpath(xmlTreeModel *ttt, gchar *xpath
 
 GtkTreePath * xml_tree_model_get_path_from_position(xmlTreeModel *ttt, gint position);
 
+gchar * xml_tree_model_get_xpath_from_position(xmlTreeModel *ttt, gint position);
 
 #endif /* _xml_tree_model_h_included_ */

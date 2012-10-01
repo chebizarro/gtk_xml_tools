@@ -257,7 +257,7 @@ xslt_transformer_init (xsltTransformer *ttt)
 
 	ttt->entry = make_xslt_entry(ttt);
  
-	hbox = gtk_hbox_new(FALSE, 3);
+	hbox = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(label), FALSE, FALSE, 5);
  	gtk_box_pack_start(GTK_BOX(hbox), ttt->entry, TRUE, TRUE, 0);
 
@@ -271,12 +271,13 @@ xslt_transformer_init (xsltTransformer *ttt)
 
 	frame = gtk_frame_new(_("Parameters"));
     gtk_container_add(GTK_CONTAINER(frame), scrolled_window);
+	gtk_container_set_border_width(GTK_CONTAINER(scrolled_window), 6);
 
-	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(hbox), FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(hbox), TRUE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(frame), TRUE, TRUE, 0);
 	
-	gtk_box_pack_start(GTK_BOX(panel), GTK_WIDGET(vbox), FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(panel), GTK_WIDGET(make_xslt_param_view(ttt)), FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(panel), GTK_WIDGET(vbox), TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(panel), GTK_WIDGET(xml_navigator_new()), TRUE, FALSE, 0);
 
 	gtk_box_pack_start(GTK_BOX(ttt), GTK_WIDGET(panel), FALSE, FALSE, 0);
 	
@@ -285,7 +286,6 @@ xslt_transformer_init (xsltTransformer *ttt)
 	g_signal_connect(ttt, "xslt-transformer-model-changed", G_CALLBACK(xslt_add_params), ttt->parameters);
 
 }
-
 
 void xslt_transformer_set_stylesheet(xsltTransformer *ttt, xmlTreeModel * xmltreemodel)
 {
