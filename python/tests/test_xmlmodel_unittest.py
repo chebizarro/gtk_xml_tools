@@ -3,7 +3,10 @@ import inspect
 
 from types import *
 
-from gtk_xml_tools import PysletTreeModel as PysletTreeModel
+import sys
+sys.path.append('../')
+
+from gtk_xml_tools import XMLTreeModel
 
 from xml.dom import Node
 
