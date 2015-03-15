@@ -56,8 +56,8 @@ enum {
 };
 
 static GHashTable	*xtools;
-static xmlTools		*tools_blank;
-static gint			xtools_pages[XTOOLS_COUNT];
+static xmlTools	*tools_blank;
+static gint		xtools_pages[XTOOLS_COUNT];
 static GtkWidget	*xtools_geany_pages[XTOOLS_COUNT];
 static GtkWidget	*xtools_views[XTOOLS_COUNT];
 
@@ -101,8 +101,12 @@ static void		on_xsl_menu_activated		(xsltTransformer *ttt,
 											 GtkWidget	 	*menu);
 
 static void		on_xsl_transform	(	xsltTransformer 	* ttt,
-										GtkWidget	 	* button);
+										gchar	*filepath);
 
+static gboolean	on_editor_notify (	GObject *obj,
+										GeanyEditor *editor,
+										SCNotification *nt,
+										gpointer user_data);
 
 
 static xmlTools *
@@ -121,7 +125,7 @@ xtools_new( GeanyDocument *doc) {
 	tools->navigator = xml_navigator_new();
 	
 	xml_navigator_set_model(tools->navigator, tools->model);
-	g_signal_connect(tools->navigator, "xml-row-activated", G_CALLBACK(on_navigator_activated), NULL);
+	g_signal_connect(tools->navigator, "xml-button-press", G_CALLBACK(on_navigator_activated), NULL);
 	ui_widget_modify_font_from_string(GTK_WIDGET(tools->navigator->navigator), geany->interface_prefs->tagbar_font);
 
 	tools->explorer = xpath_explorer_new();
@@ -132,11 +136,18 @@ xtools_new( GeanyDocument *doc) {
 
 	tools->transformer = xslt_transformer_new();
 	xslt_transformer_set_model(tools->transformer, tools->model);
-	g_signal_connect(tools->navigator, "xslt-transformer-menu-activated", G_CALLBACK(on_xsl_menu_activated), NULL);
-	g_signal_connect(tools->navigator, "xslt-transformer-model-transformed", G_CALLBACK(on_xsl_transform), NULL);
+	g_signal_connect(tools->transformer, "xslt-transformer-menu-activated", G_CALLBACK(on_xsl_menu_activated), NULL);
+	g_signal_connect(tools->transformer, "xslt-transformer-transformed", G_CALLBACK(on_xsl_transform), NULL);
+	g_signal_connect(tools->transformer->stylesheet, "xml-tree-model-error", G_CALLBACK(on_xml_error), NULL);
+	g_signal_connect(tools->transformer->stylesheet, "xml-tree-model-xsl-error", G_CALLBACK(on_xsl_error), NULL);
 
-	scintilla_send_message(doc->editor->sci, SCI_SETMOUSEDWELLTIME, 5000, NULL);
+	g_signal_connect(tools->transformer->result, "xml-tree-model-error", G_CALLBACK(on_xml_error), NULL);
+	g_signal_connect(tools->transformer->result, "xml-tree-model-xsl-error", G_CALLBACK(on_xsl_error), NULL);
 
+
+	//scintilla_send_message(doc->editor->sci, SCI_SETMOUSEDWELLTIME, 2000, NULL);
+	//plugin_signal_connect (	geany_plugin, NULL, "editor-notify", TRUE, (GCallback)&on_editor_notify, NULL);
+	
 	return tools;
 }
 
@@ -222,6 +233,7 @@ on_xsl_menu_activated (	xsltTransformer *ttt,
 
 	doc = document_get_current();
 	file_menu = gtk_menu_new();
+
 	for (i = 0; i < GEANY(documents_array)->len; i++) {
 		if(documents[i]->is_valid && documents[i] != doc){
 			if(documents[i]->file_type->id == GEANY_FILETYPES_XML) {
@@ -273,7 +285,7 @@ on_navigator_activated(	GtkWidget *widget,
 			GeanyDocument *doc;
 			doc = document_get_current();
 			navqueue_goto_line(doc, doc, line);
-			change_focus_to_editor(doc);
+			//change_focus_to_editor(doc);
 		}
 	}
 	return FALSE;
@@ -289,25 +301,13 @@ on_document_filetype_set (	GObject *obj,
 }
 
 static void
-on_xsl_transform (	xsltTransformer 	* ttt,
-					GtkWidget	 	* button)
+on_xsl_transform (	xsltTransformer 	*ttt,
+					gchar				*filepath)
 {
-	GeanyDocument* gresult;
-	gint byteswritten;
 	
-	g_return_if_fail(ttt->result != NULL);
+	g_return_if_fail(ttt != NULL);
 	
-	gchar template[] = "/tmp/xml_transformation_XXXXXX";
-	gint file = g_mkstemp(template);
-	
-	g_return_if_fail(file >= 0);
-
-	byteswritten = xml_tree_model_write_to_file(ttt->result, file, 1);
-
-	close(file);
-	
-	if( byteswritten > 0) 
-		gresult = document_open_file(template, TRUE, NULL, NULL);
+	document_open_file(filepath, FALSE, NULL, NULL);
 
 }
 
@@ -465,59 +465,25 @@ on_editor_notify (	GObject *obj,
 	if( nt->nmhdr.code == SCN_UPDATEUI &&
 		doc->file_type->id == GEANY_FILETYPES_XML)
 	{
-		/*	
-		if((nt->updated & SC_UPDATE_SELECTION) == SC_UPDATE_SELECTION)
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_SELECTION %d", nt->updated);
-
-		if((nt->updated & (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT)) == (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT))
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_SELECTION | SC_UPDATE_CONTENT %d", nt->updated);
-
-		if((nt->updated & (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL)) == (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL))
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL %d", nt->updated);
-
-		if((nt->updated & (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL | SC_UPDATE_H_SCROLL)) == (SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL | SC_UPDATE_H_SCROLL))
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_SELECTION | SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL | SC_UPDATE_H_SCROLL %d", nt->updated);
-
-		if((nt->updated & (SC_UPDATE_CONTENT)) == SC_UPDATE_CONTENT)
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_CONTENT %d", nt->updated);
-
-		if((nt->updated & (SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL)) == (SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL))
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_CONTENT | SC_UPDATE_V_SCROLL %d", nt->updated);
-
-		if((nt->updated & (SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL)) == (SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL))
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL %d", nt->updated);
-		
-		if((nt->updated & (SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL)) == (SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL))
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_CONTENT | SC_UPDATE_H_SCROLL | SC_UPDATE_H_SCROLL %d", nt->updated);
-			
-		if((nt->updated & SC_UPDATE_V_SCROLL) == SC_UPDATE_V_SCROLL)
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_V_SCROLL %d", nt->updated);
-		
-		if((nt->updated & SC_UPDATE_H_SCROLL) == SC_UPDATE_H_SCROLL)
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_H_SCROLL %d", nt->updated);
-		
-		if((nt->updated & (SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL)) == (SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL))
-			msgwin_msg_add(COLOR_BLUE,0,NULL,"SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL %d", nt->updated);
-		*/
-
 		if(nt->updated == SC_UPDATE_SELECTION) {
 			tools = g_hash_table_lookup(xtools, doc);
 			g_return_val_if_fail(tools != NULL, FALSE);
 			column = sci_get_current_position(editor->sci);
-			//msgwin_msg_add(COLOR_BLUE,0,NULL,"Position %d", column);
-			xml_breadcrumbs_set_path_from_position(tools->navigator->breadcrumbs, column);
+			//xml_breadcrumbs_set_path_from_position(tools->navigator->breadcrumbs, column);
 			xml_navigator_goto_file_location(tools->navigator, column);
 		}
-		
-		if(nt->position == SCN_DWELLSTART) {
-			gchar *tooltip;
-			column = sci_get_current_position(editor->sci);
-			scintilla_send_message(doc->editor->sci, SCI_CALLTIPSHOW, &column, tooltip);
-			g_free(tooltip);
-		}
-		
-		
 	}
+	
+	if( nt->nmhdr.code == SCN_DWELLSTART &&
+		doc->file_type->id == GEANY_FILETYPES_XML)
+	{
+		//gchar *tooltip;
+		//column = sci_get_current_position(editor->sci);
+		//scintilla_send_message(doc->editor->sci, SCI_CALLTIPSHOW, &column, "TEST");
+		//g_free(tooltip);
+		//gtk_widget_set_tooltip_text(doc->editor->sci, "TEST");
+	}
+	
 	return FALSE;
 }
 
@@ -568,8 +534,8 @@ plugin_init(GeanyData *data)
 	plugin_signal_connect(geany_plugin, NULL, "document-save", TRUE,
 		(GCallback)&on_document_save, NULL);
 
-	plugin_signal_connect(geany_plugin, NULL, "editor-notify", TRUE,
-		(GCallback)&on_editor_notify, NULL);
+	//plugin_signal_connect(geany_plugin, NULL, "editor-notify", TRUE,
+	//	(GCallback)&on_editor_notify, NULL);
 		
 	plugin_signal_connect(geany_plugin, NULL, "document-new", TRUE,
 		(GCallback)&on_document_new, NULL);

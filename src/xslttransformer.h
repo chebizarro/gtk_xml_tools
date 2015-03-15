@@ -9,6 +9,7 @@
 #include <gtk/gtk.h>
 #include "xmltreemodel.h"
 #include "xmltools.h"
+#include "xmlnavigator.h"
 
 #include <libxslt/xslt.h>
 #include <libxslt/xsltInternals.h>
@@ -33,7 +34,13 @@ struct _xsltTransformer
 	
 	GtkEntry	*entry;
 	GtkTreeView	*parameters;
-
+	GtkButton	*run;
+	XmlNavigator *results_nav;
+	
+	GtkEntry	*results_entry;
+	gchar		*results_path;
+	
+	
 	xmlTreeModel *model;
 	xmlTreeModel *stylesheet;
 	xmlTreeModel *result;

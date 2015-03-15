@@ -35,7 +35,7 @@ enum
 	XML_TREE_MODEL_COL_LINE,
 	XML_TREE_MODEL_COL_POS,
 	XML_TREE_MODEL_COL_XPATH,
-	XML_TREE_MODEL_N_COLUMNS,
+	XML_TREE_MODEL_N_COLUMNS
 };
 
 #define XML_N_NODE_TYPES 22
@@ -51,6 +51,12 @@ struct _xslErrorMessage
 	gint	line;
 	gchar	* element;
 };
+
+
+typedef enum {
+    XML_PURGE_FILE			= 1<<0,
+    XML_NOTIFY_ON_CHANGE	= 1<<1
+} xmlTreeModelOption;
 
 typedef struct _xmlTreeModel			 xmlTreeModel;
 typedef struct _xmlTreeModelClass	xmlTreeModelClass;
@@ -79,12 +85,16 @@ struct _xmlTreeModel
 	
 	gboolean			valid;
 	
+	gint				offset;
+
+	xmlTreeModelOption	options;
+	
 	/* These two fields are not absolutely necessary, but they		*/
 	/*	 speed things up a bit in our get_value implementation		*/
-	gint		n_columns;
-	GType		column_types[XML_TREE_MODEL_N_COLUMNS];
+	gint				n_columns;
+	GType				column_types[XML_TREE_MODEL_N_COLUMNS];
  
-	gint		stamp;			 /* Random integer to check whether an iter belongs to our model */
+	gint				stamp;			 /* Random integer to check whether an iter belongs to our model */
 };
  
  
@@ -96,38 +106,56 @@ struct _xmlTreeModelClass
 	GObjectClass parent_class;
 	
 	/* Signals */
-	void (* xml_tree_model_changed)	(xmlTreeModel *ttt);
-	void (* xml_tree_model_error)	(xmlTreeModel *ttt);
-	void (* xml_tree_model_xsl_error)	(xmlTreeModel *ttt);
+	void (* xml_tree_model_changed)		(xmlTreeModel *model);
+	void (* xml_tree_model_error)		(xmlTreeModel *model);
+	void (* xml_tree_model_xsl_error)	(xmlTreeModel *model);
 
 };
  
  
-GType	xml_tree_model_get_type (void);
+GType			xml_tree_model_get_type					(void);
+
+/* Test cases */
+
+xmlTreeModel	*xml_tree_model_new						(void);
+
+xmlTreeModel	*xml_tree_model_new_from_file			(gchar	*filename);
 
 
-xmlTreeModel	*xml_tree_model_new (void);
+GtkListStore	*xml_tree_model_get_xpath_results		(xmlTreeModel *model,
+														 gchar		  *xpath);
+GtkListStore	*xml_tree_model_get_stylesheet_params	(xmlTreeModel *model);
 
-void	xml_tree_model_add_file (xmlTreeModel   *xml_tree_model, gchar  *filename);
+xmlTreeModel	*xml_tree_model_transform				(xmlTreeModel *xml,
+														 xmlTreeModel *xslt,
+														 GHashTable	  *params);
+														 				 
+/* No test cases */
+void			xml_tree_model_add_file					(xmlTreeModel *model,
+														 gchar		  *filename);
 
-GtkListStore * xml_tree_model_get_xpath_results(xmlTreeModel *xmllist, gchar *xpath);
+gboolean		xml_tree_model_validate					(xmlTreeModel *model);
 
-gboolean	xml_tree_model_validate(xmlTreeModel *tree_model);
 
-GtkListStore * xml_tree_model_get_stylesheet_params(xmlTreeModel *xmltreemodel);
+gint			xml_tree_model_write_to_file			(xmlTreeModel *model,
+														 gint 		  fd,
+														 gint		  format);
 
-xmlTreeModel *xml_tree_model_transform (xmlTreeModel * xml, xmlTreeModel * xslt, GHashTable *params);
+gint			xml_tree_model_save_xsl					(xmlTreeModel *model,
+														 gchar			*filename);
 
-gint xml_tree_model_write_to_file(xmlTreeModel * ttt, gint fd, gint format);
 
-gboolean xml_tree_model_is_stylesheet(xmlTreeModel *ttt); 
+gboolean		xml_tree_model_is_stylesheet			(xmlTreeModel *model); 
 
-void	xml_tree_model_reload (xmlTreeModel *xmltreemodel);
+void			xml_tree_model_reload					(xmlTreeModel *model);
 
-GtkTreePath * xml_tree_model_get_path_from_xpath(xmlTreeModel *ttt, gchar *xpath);
+GtkTreePath		*xml_tree_model_get_path_from_xpath		(xmlTreeModel *model,
+														 gchar		  *xpath);
 
-GtkTreePath * xml_tree_model_get_path_from_position(xmlTreeModel *ttt, gint position);
+GtkTreePath 	*xml_tree_model_get_path_from_position	(xmlTreeModel *model,
+														 gint		  position);
 
-gchar * xml_tree_model_get_xpath_from_position(xmlTreeModel *ttt, gint position);
-
+gchar 			*xml_tree_model_get_xpath_from_position	(xmlTreeModel *model,
+														 gint		  position);
+														 
 #endif /* _xml_tree_model_h_included_ */

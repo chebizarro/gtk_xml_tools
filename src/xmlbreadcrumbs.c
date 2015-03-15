@@ -182,18 +182,12 @@ get_node_name (ButtonData *button_data)
 	
 	str = g_strsplit(button_data->xpath, "/", 0);
 	
+	g_return_val_if_fail(str != NULL, NULL);
+	
 	name = g_strdup(str[g_strv_length(str) - 1]);
 	
 	g_strfreev(str);
 
-	/*	
-	if(g_utf8_strlen(button_data->ns,-1) > 0) {
-		str = g_strdup_printf("%s:%s", button_data->ns, button_data->node_name);
-	} else {
-		str = g_strdup(button_data->node_name);
-	}
-	*/
-	
 	return name;
 }
 
@@ -1354,7 +1348,7 @@ void
 xml_breadcrumbs_set_path_from_path ( XmlBreadcrumbs *path_bar, 
 									  GtkTreePath	*treepath )
 {
-	ButtonData *button_data;
+	ButtonData *button_data = NULL;
 
 	g_return_if_fail (XML_IS_BREADCRUMBS (path_bar));
     g_return_if_fail (treepath != NULL);
@@ -1408,7 +1402,7 @@ void
 xml_breadcrumbs_set_model(XmlBreadcrumbs *breadcrumbs, xmlTreeModel *model)
 {
 	breadcrumbs->priv->model = model;
-	xml_breadcrumbs_set_path_from_path(breadcrumbs, gtk_tree_path_new_from_string("0:0"));
+	xml_breadcrumbs_set_path_from_path(breadcrumbs, gtk_tree_path_new_from_string("0"));
 }
 
 XmlBreadcrumbs

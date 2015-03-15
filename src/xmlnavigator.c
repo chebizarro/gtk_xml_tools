@@ -13,7 +13,6 @@ enum {
 	ROW_EXPANDED_SIGNAL,
 	BUTTON_PRESS_EVENT,
 	MODEL_CHANGED,
-	XPATH_MODEL_CHANGED,
 	LAST_SIGNAL
 };
 
@@ -209,7 +208,7 @@ update_breadcrumbs (XmlNavigator *ttt,
 					xmlTreeModel *xmltreemodel,
 					XmlBreadcrumbs *breadcrumbs)
 {
-	xml_breadcrumbs_set_model(ttt->breadcrumbs, xmltreemodel);
+	xml_breadcrumbs_set_model(ttt->breadcrumbs, ttt->filter.filter);
 }
 
 static gboolean
@@ -304,20 +303,34 @@ xml_navigator_button_press_event(	GtkWidget *widget,
 {
 
 	GtkTreeSelection *selection;
+	GtkWidgetClass *widget_class = GTK_WIDGET_GET_CLASS(widget);
+	gboolean handled = FALSE;
+
+	/* force the TreeView handler to run before us for it to do its job (selection & stuff).
+	 * doing so will prevent further handlers to be run in most cases, but the only one is our own,
+	 * so guess it's fine. */
+	if (widget_class->button_press_event)
+		handled = widget_class->button_press_event(widget, event);
+
 	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(widget));
 
-	/*
+	
 	if (event->type == GDK_BUTTON_PRESS && event->button == 1) {
 	
 		GtkTreePath *path;
-		GtkTreeIter	*iter;
-		gtk_tree_selection_get_selected(selection, ttt->model, &iter);
-		path = gtk_tree_model_get_path(ttt->model, &iter );
-		xml_breadcrumbs_set_path_from_path (ttt->breadcrumbs, path);
-		g_signal_emit(ttt, xml_navigator_signals[ROW_ACTIVATED_SIGNAL],0,selection);
-		return TRUE;
+		GtkTreeIter	iter;
+	
+		if (gtk_tree_selection_count_selected_rows(selection)  == 1) {
+
+			gtk_tree_selection_get_selected(selection, &ttt->model, &iter);
+			path = gtk_tree_model_get_path(ttt->model, &iter );
+			//xml_breadcrumbs_set_path_from_path (ttt->breadcrumbs, path);
+			g_signal_emit(ttt, xml_navigator_signals[BUTTON_PRESS_EVENT],0,selection);
+			gtk_tree_path_free(path);
+		}
+		return FALSE;
 	}
-	*/
+	
 	
 	/* single click with the right mouse button */
 	if (event->type == GDK_BUTTON_PRESS && event->button == 3) {
@@ -341,7 +354,7 @@ xml_navigator_row_activated(GtkTreeView	*tree_view,
 	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree_view));
 
 	//xml_breadcrumbs_set_path_from_path (ttt->breadcrumbs, path);
-	g_signal_emit(ttt, xml_navigator_signals[ROW_ACTIVATED_SIGNAL],0,selection, &return_value);
+	g_signal_emit(ttt, xml_navigator_signals[ROW_ACTIVATED_SIGNAL],0,selection);
 	return return_value;
 }
 
@@ -486,8 +499,8 @@ make_navigator_view (XmlNavigator * ttt)
 	g_signal_connect(view, "button-press-event",
 			G_CALLBACK(xml_navigator_button_press_event), ttt);
 
-	g_signal_connect(view, "row-activated",
-			G_CALLBACK(xml_navigator_row_activated), ttt);
+	//g_signal_connect(view, "row-activated",
+	//		G_CALLBACK(xml_navigator_row_activated), ttt);
 
 	g_signal_connect(view, "row-expanded",
 			G_CALLBACK(xml_navigator_row_expanded), ttt);
@@ -576,7 +589,7 @@ xml_navigator_class_init (XmlNavigatorClass *klass)
 												G_STRUCT_OFFSET (XmlNavigatorClass, xml_button_press),
 												NULL, 
 												NULL,								
-												g_cclosure_marshal_VOID__POINTER,
+												g_cclosure_marshal_VOID__VOID,
 												G_TYPE_NONE, 1, G_TYPE_POINTER);
 
 
@@ -649,7 +662,7 @@ xml_navigator_goto_path(XmlBreadcrumbs *breadcrumbs, GtkTreePath *path, XmlNavig
 static void
 make_breadcrumbs(XmlNavigator *ttt)
 {
-	ttt->breadcrumbs = xml_breadcrumbs_new();
+	//ttt->breadcrumbs = xml_breadcrumbs_new();
     gtk_box_pack_end (GTK_BOX(ttt), ttt->breadcrumbs, FALSE, FALSE, 0);
    	g_signal_connect(ttt, "xml-model-changed", G_CALLBACK(update_breadcrumbs), ttt->breadcrumbs);
    	g_signal_connect(ttt->breadcrumbs, "xml-breadcrumb-path-clicked", G_CALLBACK(xml_navigator_goto_path), ttt);
@@ -662,7 +675,7 @@ xml_navigator_init (XmlNavigator *ttt)
 	make_toolbar(ttt);
 	make_filter(ttt);
 	make_navigator(ttt);
-	make_breadcrumbs(ttt);
+	//make_breadcrumbs(ttt);
 }
 
 void
@@ -711,6 +724,9 @@ xml_navigator_goto_xpath (XmlNavigator *ttt, gchar *xpath)
 
 	gtk_tree_view_expand_to_path(ttt->navigator, treepath);
 	gtk_tree_view_set_cursor(ttt->navigator, treepath, column, FALSE);
+	
+	//xml_breadcrumbs_set_path_from_path(ttt->breadcrumbs, treepath);
+	
 	//gtk_tree_view_row_activated(ttt->navigator, treepath, column);
 
 	gtk_tree_path_free(treepath);
